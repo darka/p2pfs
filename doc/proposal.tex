@@ -15,15 +15,19 @@
 \maketitle
 
 \begin{abstract}
-This is a proposal.
+The proposal describes the design of a Distributed Peer-to-peer File System aiming for simplicity and efficiency. A brief overlook of projects with similar goals is given, along with their drawbacks and differences from the proposed implementation. A description of the most important problems, such as replication, versioning, and security that the file system faces is provided, as well as how they will be solved. The implementation will target the ns-3 simulator and the real world network, and will be evaluated using commonly accepted benchmarks, such as the Andrew benchmark. The project will be published under an open source license.
 \end{abstract}
 
 \section{Purpose}
-The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the propriertary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, with the contents of the person's shared folder being distributed among other users of the system. 
+The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, with the contents of the person's shared folder being distributed among other users of the system. 
 
-The project consists of developing a backend based on a peer-to-peer distributed hash table algorithm, and a frontend, which would allow users to place and retrieve files from the file system.
+The project consists of developing a back-end based on a peer-to-peer distributed hash table algorithm, and a front-end, which would allow users to place and retrieve files from the file system.
 
-The project will strive for simplicity (potential open source contributors will find the project easier to grasp, thus enabling them to submit more contributions) and efficiency (users will only find the file system useful if it performs well). 
+The project will strive for:
+\begin{enumerate}
+\item simplicity, so that potential open source contributors find the project easy to grasp, thus enabling them to submit contributions;
+\item efficiency, since users will only consider the file system useful if it offers good performance.
+\end{enumerate}
 
 \section{Background}
 
@@ -31,16 +35,18 @@ Currently a number of companies are providing a remote synchronized directory se
 Furthermore, the proposed project has the potential to offer much more free space to its users than any of the currently available centralised services.
 
 During the last 15 years, a lot of promising technology has been developed that can eliminate the providing vendors while offering the same high quality service. 
-Systems based on a Distributed Hash Table (DHT) have allowed lookup services to be implemented in a completely decentralised network, allowing any participating nodes to efficiently retrieve data. Implementations of DHT's are being successfully used in various peer-to-peer Internet services, such as BitTorrent and Coral Content Distribution Network \cite{coral}.
+Systems based on a Distributed Hash Table (DHT) have allowed lookup services to be implemented in a completely decentralised network, allowing any participating nodes to efficiently retrieve data. Implementations of DHTs are being successfully used in various peer-to-peer Internet services, such as BitTorrent and Coral Content Distribution Network \cite{coral}.
 
-Such technology is just as well applicable to distributed file systems. Attempts to implement such systems have been made:
+Such technology is just as well applicable to distributed file systems. Attempts to implement such systems have been made, however all of them are catered to specific workflows, leading to a lot of complexity, which this implementation hopes to avoid.
+
+A list of decentralised peer-to-peer file systems and their drawbacks follows:
+
 \begin{itemize}
-  \item CFS -- decentralised peer-to-peer storage system, robust and efficient but read-only \cite{cfs}.
-  \item Pastis -- distributed file system based on the Pastry lookup protocol, which is substantially more complicated than Chord \cite{chord}.
-  \item OceanStore -- not completely decentralised \cite{oceanstore}.
-  \item Ivy \cite{ivy}
-  \item Pastis \cite{pastis}
-  \item Infinit \cite{towards}
+  \item CFS \cite{cfs} -- decentralised peer-to-peer storage system, robust and efficient but read-only.
+  \item Pastis \cite{pastis} -- distributed file system based on the Pastry lookup protocol, which is substantially more complicated than Chord \cite{chord}.
+  \item OceanStore \cite{oceanstore} -- not completely decentralised, architecture is partitioned into two tiers \cite{towards}, where some nodes are deemed highly available, and others are considered more transient. This kind of partitioning leads to further complexity in the implementation.
+  \item Ivy \cite{ivy} -- another distributed file system, built with the intent of allowing different users to share data amongst each other (rather than use it as a personal storage container), leading to a much more complicated approach, involving the maintenance of transaction logs of each participant.
+  \item Infinit \cite{towards} -- the main focus of this distributed file system is the design of an access control and administration scheme. 
 \end{itemize}
 %Chord
 %Kademlia
@@ -57,10 +63,10 @@ So far no implementations are being used outside the research community by the w
 
 \section{Methods}
 
-To build such a file system, a backend and a frontend will be designed.
+To build such a file system, a back-end and a front-end will be designed.
 
-The frontend of the file system will be based on FUSE (Filesystem in Userspace) \cite{fuse}.
-The backend will be based on a DHT (Distributed Hash Table). 
+The front-end of the file system will be based on FUSE (Filesystem in Userspace) \cite{fuse}.
+The back-end will be based on a DHT (Distributed Hash Table). 
 The implementation will have two targets -- the ns-3 \cite{ns3} simulator and the real world network.
 
 \subsection{Network}
@@ -93,16 +99,28 @@ As it is common to compare the performance of peer-to-peer file systems to the p
 
 \section{Outputs}
 
-A prototype of the system described will be made available as an open source project under the GPL \cite{gpl} license. The implementation will consist of a frontend and a backend, providing full usage capabilities on any Linux-based operating system, as well as Mac OS X. Windows will not be supported, due to the lack of a mature port of FUSE. 
+A prototype of the system described will be made available as an open source project under the GPL \cite{gpl} license. The implementation will consist of a front-end and a back-end, providing full usage capabilities on any Linux-based operating system, as well as Mac OS X. Windows will not be supported, due to the lack of a mature port of FUSE. 
 
 The project will be published on a GitHub \cite{github} repository, and open to contributions from the open source community.
 
 \section{Workplan}
 
-% TODO: attach image from presentation (in Google Drive MInf directory)
+The workplan timetable is given below:
+
+\begin{center}
+\includegraphics[width=13cm]{timetable.png}
+\end{center}
 
 \bibliographystyle{IEEEtran}
 \begin{thebibliography}{10}
+\bibitem{dropbox}
+Dropbox. http://www.dropbox.com/
+\bibitem{gdrive}
+Google Drive. http://drive.google.com/start/
+\bibitem{coral}
+M. J. Freedman, E. Freudenthal, D. Mazieres.
+Democratizing content publication with Coral.
+In NSDI, Mar. 2004.
 \bibitem{ns3}
 ns-3. Discrete-event network simulator. http://www.nsnam.org/
 \bibitem{chord} 
@@ -112,16 +130,8 @@ service for internet applications. In Proceedings of the 2001
 Conference on Applications, Technologies, Architectures,
 and Protocols for Computer Communications, pages
 149–160. ACM Press, 2001.
-\bibitem{dropbox}
-Dropbox. http://www.dropbox.com/
 \bibitem{fuse}
 FUSE: Filesystem in Userspace. http://fuse.sourceforge.net/ 
-\bibitem{gdrive}
-Google Drive. http://drive.google.com/start/
-\bibitem{coral}
-M. J. Freedman, E. Freudenthal, D. Mazieres.
-Democratizing content publication with Coral.
-In NSDI, Mar. 2004.
 \bibitem{cfs}
 F. Dabek, M. F. Kaashoek, D. Karger, R. Morris, and I. Stoica. Wide-area
 cooperative storage with CFS. In SOSP, Oct. 2001.
