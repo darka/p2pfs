@@ -15,11 +15,11 @@
 \maketitle
 
 \begin{abstract}
-The proposal describes the design of a Distributed Peer-to-peer File System aiming for simplicity and efficiency. A brief overlook of projects with similar goals is given, along with their drawbacks and differences from the proposed implementation. A description of the most important problems, such as replication, versioning, and security that the file system faces is provided, as well as how they will be solved. The implementation will target the ns-3 simulator and the real world network, and will be evaluated using commonly accepted benchmarks, such as the Andrew benchmark. The project will be published under an open source license.
+This proposal describes the design of a Distributed Peer-to-peer File System aiming for simplicity and efficiency. A brief overlook of projects with similar goals is given, along with their drawbacks and differences from the proposed implementation. A description of the most important problems, such as replication, versioning, and security that the distributed file system faces is provided, as well as how they will be solved. The project will target the ns-3 simulator and the real world network, and will be evaluated using commonly accepted benchmarks, such as the Andrew benchmark. The prototype implementation will be published under an open source license.
 \end{abstract}
 
 \section{Purpose}
-The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, with the contents of the person's shared folder being distributed among other users of the system. 
+The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, with the encrypted contents of the person's private folder being distributed among other users of the system. 
 
 The project consists of developing a back-end based on a peer-to-peer distributed hash table algorithm, and a front-end, which would allow users to place and retrieve files from the file system.
 
@@ -31,7 +31,7 @@ The project will strive for:
 
 \section{Background}
 
-Currently a number of companies are providing a remote synchronized directory service, with the most famous examples being Dropbox \cite{dropbox} and Google Drive \cite{gdrive}. These services are not distributed -- the user's files are stored on the servers of the company which provides the service. This means, that if the company ever goes out of business, decides to stop offering the service, or simply changes the terms of the service to ones that the user disagrees with, the user will no longer be able to use the service. 
+A number of companies are providing a remote synchronized directory service, with the most famous examples being Dropbox \cite{dropbox} and Google Drive \cite{gdrive}. These services are not distributed -- the user's files are stored on the servers of the company which provides the service. This means, that if the company ever goes out of business, decides to stop offering the service, or simply changes the terms of the service to ones that the user disagrees with, the user will no longer be able to use the service. 
 Furthermore, the proposed project has the potential to offer much more free space to its users than any of the currently available centralised services.
 
 During the last 15 years, a lot of promising technology has been developed that can eliminate the providing vendors while offering the same high quality service. 
@@ -48,16 +48,6 @@ A list of decentralised peer-to-peer file systems and their drawbacks follows:
   \item Ivy \cite{ivy} -- another distributed file system, built with the intent of allowing different users to share data amongst each other (rather than use it as a personal storage container), leading to a much more complicated approach, involving the maintenance of transaction logs of each participant.
   \item Infinit \cite{towards} -- the main focus of this distributed file system is the design of an access control and administration scheme. 
 \end{itemize}
-%Chord
-%Kademlia
-%CFS
-% Problems: read-only
-%Ivy
-%OceanStore
-%WAND File System
-%BitTorrent
-%DropBox
-%Google Drive
 
 So far no implementations are being used outside the research community by the wider public, and no large-scale high quality open source projects capable of offering such a service have been established.
 
@@ -72,12 +62,13 @@ The implementation will have two targets -- the ns-3 \cite{ns3} simulator and th
 \subsection{Network}
 The lookup service for the DHT will be provided by the Chord peer-to-peer overlay network. Main reasons to choose Chord over other P2P services are its simplicity, the fact that it is well-studied already, and its provable correctness and performance will allow for producing a more formally grounded result \cite{chord}. %TODO: cite something (those slides?)
 
-Chord can be imagined as a network of nodes connected in a circle, where each node knows its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. A key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
+Chord can be imagined as a network of nodes connected in a circle, where each node knows its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. The value of a key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
 
-Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer file system.
+Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer file system \cite{chord}.
 
 \subsection{Replication}
-To enable reliable file storage, the peer-to-peer network must have a system of file replication. The most basic implementation is to store the exact same replica of the file at a fixed number of successor nodes. This has proven 99\% efficacy (FIND A CITATION).
+To enable reliable file storage, the peer-to-peer network must have a system of file replication. The most basic implementation is to store the exact same replica of the file at a fixed number of successor nodes. 
+
 In the case that this is deemed inadequate, during the development process, a more complicated scheme, such as Dynamic Replication could be implemented instead \cite{dhash}.
 
 \subsection{Versioning}
@@ -88,10 +79,13 @@ Due to the way replication works, not all copies of the file currently in the ne
 Unlike other Peer-to-peer systems such as Freenode, the emphasis of this project is not security, but instead simplicity and efficiency. Only a minimal security mechanism will be provided, where the owner's files will be encrypted using a symmetric-key algorithm, with a possible candidate being Twofish (which is being widely used in a lot of products \cite{twofishprod}).
 This will not provide complete anonymity but will prevent unauthorised access to the user's files, as long as the key is kept safe.
 
+\subsection{Front-end}
+
+The front-end of the file system will be based on FUSE, which allows implementing a file system as a user space program \cite{fuse}.
 
 \section{Evaluation}
 
-As was mentioned, the implementation targets both the ns-3 \cite{ns3} simulator, and the real world network. This allows for performing simulated experiments on systems involving a large number of nodes, as well as performing real-world experiments with the intent of comparing performance to other well-established file systems.
+As was mentioned, the implementation targets both the ns-3 \cite{ns3} simulator, and the real world network. This allows for performing simulated experiments on systems involving a large number of nodes in order to determine how well the system scales, as well as performing real-world experiments with the intent of comparing performance to other well-established file systems.
 
 Well-established and commonly used benchmarks in file system evaluation are the Andrew benchmark \cite{andrew}, and the Linux kernel build \cite{kernelb}. The results obtained from running these benchmarks would be compared to results presented in other file system papers.
 
