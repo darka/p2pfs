@@ -19,16 +19,24 @@ import ns.internet
 import ns.network
 import ns.point_to_point
 import ns.csma
-import visualizer
+#import visualizer
 
-class ChordApp(ns.network.Application):
-	def __init__(self, addr, socket):
-		self.addr = addr
-		self.socket = socket
+class ChordApp(ns.network.Application): 
+	def StartApplication(self):
+		print("chord node started")
+		self.tid = ns.core.TypeId.LookupByName('ns3::TcpSocketFactory')
+		self.socket = ns.network.Socket.CreateSocket(self.GetNode(), self.tid)
+		self.socket.Bind(ns.network.InetSocketAddress(ns.network.Ipv4Address.GetAny(), 9))
+		self.socket.Listen()
+	def StopApplication(self):
+		print("chord node stopped")
+#	def __init__(self, addr, socket):
+#		self.addr = addr
+#		self.socket = socket
 
-	def send_hello(self, peer):
-		self.packet = ns.network.Packet()
-		self.socket.Send(packet)
+#	def send_hello(self, peer):
+#		self.packet = ns.network.Packet()
+#		self.socket.Send(packet)
 
 node_count = 2
 
@@ -53,12 +61,13 @@ ipv4.SetBase(ns.network.Ipv4Address("10.1.1.0"), ns.network.Ipv4Mask("255.255.25
 ipf = ipv4.Assign (devices)
 
 addr = ns.network.InetSocketAddress(ipf.GetAddress(0), 6000)
-capp = ChordApp(addr, None)
+#capp = ChordApp(addr, None)
+capp = ChordApp()
+capp2 = ChordApp()
+
 #capp = ns.applications.UdpEchoServer()
 nodes.Get(0).AddApplication(capp);
-nodes.Get(1).AddApplication(capp);
-#apps = ApplicationContainer()
-#apps.Add(capp)
+nodes.Get(1).AddApplication(capp2);
 
 ############
 #pointToPoint = ns.point_to_point.PointToPointHelper()
