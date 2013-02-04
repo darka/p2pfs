@@ -19,17 +19,30 @@ import ns.internet
 import ns.network
 import ns.point_to_point
 import ns.csma
-#import visualizer
+import visualizer
 
 class ChordApp(ns.network.Application): 
+	def Setup(self, peer):
+
+		self.tid = ns.core.TypeId.LookupByName('ns3::TcpSocketFactory')
+		self.address = ns.network.InetSocketAddress(ns.network.Ipv4Address.GetAny(), 9)
+		self.mySocket = ns.network.Socket.CreateSocket(self.GetNode(), self.tid)
+
+		if peer != None:
+			self.peer = peer.address
+			self.peerSocket = ns.network.Socket.CreateSocket(self.GetNode(), self.tid)
+
 	def StartApplication(self):
 		print("chord node started")
-		self.tid = ns.core.TypeId.LookupByName('ns3::TcpSocketFactory')
-		self.socket = ns.network.Socket.CreateSocket(self.GetNode(), self.tid)
-		self.socket.Bind(ns.network.InetSocketAddress(ns.network.Ipv4Address.GetAny(), 9))
-		self.socket.Listen()
+		self.mySocket.Bind(self.address)
+		self.mySocket.Listen()
+
+		self.peerSocket.Bind()
+		self.peerSocket.Connect(self.peer)
+
 	def StopApplication(self):
 		print("chord node stopped")
+		# TODO: close all sockets
 #	def __init__(self, addr, socket):
 #		self.addr = addr
 #		self.socket = socket
@@ -38,7 +51,7 @@ class ChordApp(ns.network.Application):
 #		self.packet = ns.network.Packet()
 #		self.socket.Send(packet)
 
-node_count = 2
+node_count = 10
 
 #ns.core.LogComponentEnable("UdpEchoClientApplication", ns.core.LOG_LEVEL_INFO)
 #ns.core.LogComponentEnable("UdpEchoServerApplication", ns.core.LOG_LEVEL_INFO)
@@ -62,12 +75,19 @@ ipf = ipv4.Assign (devices)
 
 addr = ns.network.InetSocketAddress(ipf.GetAddress(0), 6000)
 #capp = ChordApp(addr, None)
-capp = ChordApp()
-capp2 = ChordApp()
+
+last_app = None
+for i in xrange(0, node_count):
+	app = ChordApp()
+	nodes.Get(i).AddApplication(app)
+
+	app.Setup(last_app)
+
+	last_app = app
 
 #capp = ns.applications.UdpEchoServer()
-nodes.Get(0).AddApplication(capp);
-nodes.Get(1).AddApplication(capp2);
+#nodes.Get(0).AddApplication(capp);
+#nodes.Get(1).AddApplication(capp2);
 
 ############
 #pointToPoint = ns.point_to_point.PointToPointHelper()
@@ -94,7 +114,7 @@ nodes.Get(1).AddApplication(capp2);
 #clientApps.Start(ns.core.Seconds(2.0))
 #clientApps.Stop(ns.core.Seconds(10.0))
 
-#visualizer.start()
+visualizer.start()
 ns.core.Simulator.Run()
 ns.core.Simulator.Destroy()
 
