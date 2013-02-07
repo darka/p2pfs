@@ -22,23 +22,26 @@ import ns.csma
 import visualizer
 
 class ChordApp(ns.network.Application): 
-	def Setup(self, peer):
+	def Setup(self, peer_address):
+		self.peer_address = peer_address
 
+	def StartApplication(self):
 		self.tid = ns.core.TypeId.LookupByName('ns3::TcpSocketFactory')
 		self.address = ns.network.InetSocketAddress(ns.network.Ipv4Address.GetAny(), 9)
 		self.mySocket = ns.network.Socket.CreateSocket(self.GetNode(), self.tid)
 
-		if peer != None:
-			self.peer = peer.address
-			self.peerSocket = ns.network.Socket.CreateSocket(self.GetNode(), self.tid)
-
-	def StartApplication(self):
-		print("chord node started")
 		self.mySocket.Bind(self.address)
 		self.mySocket.Listen()
+		self.mySocket.SetRecvCallback(self.handleRead)
 
-		self.peerSocket.Bind()
-		self.peerSocket.Connect(self.peer)
+		print("chord node started")
+		if self.peer_address != None:
+			self.peerSocket = ns.network.Socket.CreateSocket(self.GetNode(), self.tid)
+			self.peerSocket.Bind()
+			print "connecting to {}".format(self.peer_address.Get())
+			self.peerSocket.Connect(self.peer_address)
+			print "sending"
+			self.peerSocket.Send(ns.network.Packet())
 
 	def StopApplication(self):
 		print("chord node stopped")
@@ -47,11 +50,10 @@ class ChordApp(ns.network.Application):
 #		self.addr = addr
 #		self.socket = socket
 
-#	def send_hello(self, peer):
-#		self.packet = ns.network.Packet()
-#		self.socket.Send(packet)
+	def handleRead(self, socket):
+		print("received message")
 
-node_count = 10
+node_count = 2
 
 #ns.core.LogComponentEnable("UdpEchoClientApplication", ns.core.LOG_LEVEL_INFO)
 #ns.core.LogComponentEnable("UdpEchoServerApplication", ns.core.LOG_LEVEL_INFO)
@@ -62,12 +64,19 @@ nodes.Create(node_count)
 internet = ns.internet.InternetStackHelper()
 internet.Install(nodes)
 
-eth = ns.csma.CsmaHelper()
-eth.SetChannelAttribute("DataRate", ns.core.StringValue("5Mbps"))
-eth.SetChannelAttribute("Delay", ns.core.TimeValue(ns.core.MilliSeconds(2)))
-eth.SetDeviceAttribute("Mtu", ns.core.UintegerValue(1400))
+#eth = ns.csma.CsmaHelper()
+#eth.SetChannelAttribute("DataRate", ns.core.StringValue("5Mbps"))
+#eth.SetChannelAttribute("Delay", ns.core.TimeValue(ns.core.MilliSeconds(2)))
+#eth.SetDeviceAttribute("Mtu", ns.core.UintegerValue(1400))
 
-devices = eth.Install(nodes)
+#devices = eth.Install(nodes)
+
+pointToPoint = ns.point_to_point.PointToPointHelper()
+pointToPoint.SetDeviceAttribute("DataRate", ns.core.StringValue("5Mbps"))
+pointToPoint.SetChannelAttribute("Delay", ns.core.StringValue("2ms"))
+
+devices = pointToPoint.Install(nodes)
+
 
 ipv4 = ns.internet.Ipv4AddressHelper()
 ipv4.SetBase(ns.network.Ipv4Address("10.1.1.0"), ns.network.Ipv4Mask("255.255.255.0"))
@@ -77,12 +86,16 @@ addr = ns.network.InetSocketAddress(ipf.GetAddress(0), 6000)
 #capp = ChordApp(addr, None)
 
 last_app = None
+apps = ns.network.ApplicationContainer()
 for i in xrange(0, node_count):
 	app = ChordApp()
 	nodes.Get(i).AddApplication(app)
-
-	app.Setup(last_app)
-
+	if i > 0:
+		prev_address = ipf.GetAddress(0)
+	else:
+		prev_address = None
+	app.Setup(prev_address)
+	apps.Add(app)
 	last_app = app
 
 #capp = ns.applications.UdpEchoServer()
@@ -111,10 +124,10 @@ for i in xrange(0, node_count):
 #echoClient.SetAttribute("PacketSize", ns.core.UintegerValue(1024))
 #
 #clientApps = echoClient.Install(nodes.Get(0))
-#clientApps.Start(ns.core.Seconds(2.0))
-#clientApps.Stop(ns.core.Seconds(10.0))
+apps.Start(ns.core.Seconds(2.0))
+apps.Stop(ns.core.Seconds(10.0))
 
-visualizer.start()
+#visualizer.start()
 ns.core.Simulator.Run()
 ns.core.Simulator.Destroy()
 
