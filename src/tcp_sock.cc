@@ -11,42 +11,57 @@ using namespace ns3;
 class MyApp : public Application 
 {
 public:
-  MyApp (Ptr<Node> node, Address sinkAddress):
-    m_peer(sinkAddress),
-    m_node(node)
+  MyApp (Ptr<Node> node)
+  : m_node(node)
   {
+  	
   }
+
   void StartApplication()
   {
-    m_socket =  Socket::CreateSocket (m_node, TcpSocketFactory::GetTypeId ());
-    m_socket->Bind ();
-    m_socket->Connect (m_peer);
-	SendPacket();
+    out_socket = Socket::CreateSocket(m_node, TcpSocketFactory::GetTypeId ());
+    in_socket = Socket::CreateSocket(m_node, TcpSocketFactory::GetTypeId ());
+	in_socket->Bind(InetSocketAddress(Ipv4Address::GetAny(), 8080));
+	in_socket->Listen();
+	in_socket->SetAcceptCallback(MakeNullCallback<bool, Ptr<Socket>, const Address &> (), 
+	                            MakeCallback(&MyApp::HandleAccept, this));
   }
 
-  ~MyApp ()
+  void HandleAccept(Ptr<Socket> s, const Address& from)
   {
-    m_socket->Close ();
+  	std::cout << "Someone connected.\n";
   }
 
-  void SendPacket ()
+  ~MyApp()
   {
-    Ptr<Packet> packet = Create<Packet> (100);
-    m_socket->Send (packet);
-	std::cout<<"SENT!\n";
+    out_socket->Close();
+	in_socket->Close();
+  }
+
+  void ConnectTo(Address address)
+  {
+    out_socket->Bind();
+    out_socket->Connect(address);
+  }
+
+  void SendPacket()
+  {
+    Ptr<Packet> packet = Create<Packet>(100);
+    out_socket->Send(packet);
+	std::cout << "SENT!\n";
   }
 
 public:
-  Ptr<Socket> m_socket;
-  Address m_peer;
+  Ptr<Socket> in_socket;
+  Ptr<Socket> out_socket;
   Ptr<Node> m_node;
 };
 
-static void
-CountRx (Ptr<const Packet> packet, const Address & socketAddress)
-  {
-    std::cout<<"RECEIVED!\n";
-  }
+//static void
+//CountRx (Ptr<const Packet> packet, const Address & socketAddress)
+//  {
+//    std::cout<<"RECEIVED!\n";
+//  }
 
 int 
 main (int argc, char *argv[])
@@ -78,17 +93,16 @@ CommandLine cmd;
   uint16_t sinkPort = 8080;
   Address sinkAddress (InetSocketAddress (interfaces.GetAddress (2), sinkPort));
 
-  Ptr<PacketSink> receiverApplication = CreateObject<PacketSink> ();
-  receiverApplication->SetAttribute ("Local", AddressValue (InetSocketAddress (Ipv4Address::GetAny(), 8080)));
-  receiverApplication->SetAttribute ("Protocol", TypeIdValue(TcpSocketFactory::GetTypeId()));
-  receiverApplication->TraceConnectWithoutContext ("Rx", MakeCallback (&CountRx));
+  Ptr<MyApp> receiverApplication = CreateObject<MyApp> (nodes.Get(2));
   nodes.Get(2)->AddApplication(receiverApplication);
 
-  Ptr<MyApp> app = CreateObject<MyApp> (nodes.Get (1), sinkAddress);
+  Ptr<MyApp> app = CreateObject<MyApp> (nodes.Get (1));
   nodes.Get (1)->AddApplication (app);
-  Ptr<MyApp> app2 = CreateObject<MyApp> (nodes.Get (0), sinkAddress);
+  Ptr<MyApp> app2 = CreateObject<MyApp> (nodes.Get (0));
   nodes.Get (0)->AddApplication (app2);
 
+  Simulator::Schedule( Seconds(3), &MyApp::ConnectTo, app, sinkAddress);
+  Simulator::Schedule( Seconds(6), &MyApp::ConnectTo, app2, sinkAddress);
   Simulator::Stop ();
   Simulator::Run ();
   Simulator::Destroy ();
