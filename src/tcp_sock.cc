@@ -1,4 +1,7 @@
 #include <fstream>
+#include <string>
+#include <functional>
+#include <map>
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/internet-module.h"
@@ -8,53 +11,115 @@
 
 using namespace ns3;
 
+enum Command {
+	FIND_SUCCESSOR = 0
+};
+
 class MyApp : public Application 
 {
 public:
   MyApp (Ptr<Node> node)
-  : m_node(node)
+  : in_socket(0)
+  , predecessor(0)
+  , successor(0)
+  , m_node(node)
   {
   	
   }
 
   void StartApplication()
   {
-    out_socket = Socket::CreateSocket(m_node, TcpSocketFactory::GetTypeId ());
     in_socket = Socket::CreateSocket(m_node, TcpSocketFactory::GetTypeId ());
 	in_socket->Bind(InetSocketAddress(Ipv4Address::GetAny(), 8080));
+	
 	in_socket->Listen();
 	in_socket->SetAcceptCallback(MakeNullCallback<bool, Ptr<Socket>, const Address &> (), 
-	                            MakeCallback(&MyApp::HandleAccept, this));
+	                             MakeCallback(&MyApp::HandleAccept, this));
   }
 
   void HandleAccept(Ptr<Socket> s, const Address& from)
   {
   	std::cout << "Someone connected.\n";
+	connected_sockets.push_back(s);
+    s->SetRecvCallback(MakeCallback(&MyApp::HandleReceive, this));
+  }
+
+  void HandleReceive(Ptr<Socket> s)
+  {
+	Ptr<Packet> packet = s->Recv();
+	if (packet == 0)
+	{
+	  std::cout << "0 packet\n";
+	}
+	else
+	{
+  	  uint8_t buffer[5];
+  	  packet->CopyData(buffer, sizeof(buffer));
+	  std::cout << ( byteArrayToInt(&buffer[1])) << '\n';
+	}    
   }
 
   ~MyApp()
   {
-    out_socket->Close();
-	in_socket->Close();
+	if (in_socket) 
+	  in_socket->Close();
   }
 
-  void ConnectTo(Address address)
+  void GetSuccessor(Address address)
   {
-    out_socket->Bind();
-    out_socket->Connect(address);
+	//bool found = false;
+    Ptr<Socket> out_socket = Socket::CreateSocket(m_node, TcpSocketFactory::GetTypeId ());
+	out_socket->Bind();
+	out_socket->Connect(address);
+
+	SendCommand(out_socket, FIND_SUCCESSOR);
+
+	//Ptr<Packet> packet = out_socket->Recv();
+	//uint8_t buffer[5];
+	//packet->CopyData(buffer, sizeof(buffer));
+	//std::cout << byteArrayToInt(&buffer[1]) << '\n';
+	// handle successor!!
+
+	out_socket->Close();
   }
 
-  void SendPacket()
+  void SendCommand(Ptr<Socket> socket, Command command)
   {
-    Ptr<Packet> packet = Create<Packet>(100);
-    out_socket->Send(packet);
+	uint8_t buffer[5];
+	buffer[0] = (uint8_t)command;
+	intToByteArray(21341, &buffer[1]);
+    Ptr<Packet> packet = Create<Packet>(buffer, sizeof(buffer));
+    socket->Send(packet);
 	std::cout << "SENT!\n";
   }
 
-public:
+  void intToByteArray(uint32_t n, uint8_t* arr)
+  {
+  	arr[0] = n >> 24 & 0xFF;
+	arr[1] = n >> 16 & 0xFF;
+	arr[2] = n >> 8 & 0xFF;
+	arr[3] = n & 0xFF;
+  }
+
+  uint32_t byteArrayToInt(uint8_t* arr)
+  {
+	uint32_t ret = 0;
+	ret |= (((uint32_t)arr[0]) << 24);
+	ret |= (((uint32_t)arr[1]) << 16);
+	ret |= (((uint32_t)arr[2]) << 8);
+	ret |= (uint32_t)arr[3];
+	return ret;
+  }
+
+
   Ptr<Socket> in_socket;
-  Ptr<Socket> out_socket;
+  Ptr<Socket> predecessor;
+  Ptr<Socket> successor;
   Ptr<Node> m_node;
+
+  std::vector< Ptr<Socket> > connected_sockets;
+
+  std::map<size_t, std::string> items;
 };
 
 //static void
@@ -101,8 +166,8 @@ CommandLine cmd;
   Ptr<MyApp> app2 = CreateObject<MyApp> (nodes.Get (0));
   nodes.Get (0)->AddApplication (app2);
 
-  Simulator::Schedule( Seconds(3), &MyApp::ConnectTo, app, sinkAddress);
-  Simulator::Schedule( Seconds(6), &MyApp::ConnectTo, app2, sinkAddress);
+  Simulator::Schedule( Seconds(3), &MyApp::GetSuccessor, app, sinkAddress);
+  Simulator::Schedule( Seconds(6), &MyApp::GetSuccessor, app2, sinkAddress);
   Simulator::Stop ();
   Simulator::Run ();
   Simulator::Destroy ();
