@@ -39,8 +39,11 @@ public:
 
   void HandleAccept(Ptr<Socket> s, const Address& from)
   {
-  	std::cout << "Someone connected.\n";
-	connected_sockets.push_back(s);
+  	std::cout << "Someone connected from ";
+	InetSocketAddress::ConvertFrom(from).GetIpv4().Print(std::cout);
+	std::cout << '\n';
+
+	socket_address[s] = from;
     s->SetRecvCallback(MakeCallback(&MyApp::HandleReceive, this));
   }
 
@@ -49,13 +52,18 @@ public:
 	Ptr<Packet> packet = s->Recv();
 	if (packet == 0)
 	{
-	  std::cout << "0 packet\n";
+	  std::cout << "0 packet from ";
+	  InetSocketAddress::ConvertFrom(socket_address[s]).GetIpv4().Print(std::cout);
+	  std::cout << '\n';
 	}
 	else
 	{
   	  uint8_t buffer[5];
   	  packet->CopyData(buffer, sizeof(buffer));
-	  std::cout << ( byteArrayToInt(&buffer[1])) << '\n';
+	  std::cout << ( byteArrayToInt(&buffer[1]) ) << " from ";
+	  InetSocketAddress::ConvertFrom(socket_address[s]).GetIpv4().Print(std::cout);
+	  std::cout << '\n';
+	  SendCommand(s, FIND_SUCCESSOR);
 	}    
   }
 
@@ -73,6 +81,8 @@ public:
 	out_socket->Connect(address);
 
 	SendCommand(out_socket, FIND_SUCCESSOR);
+	socket_address[out_socket] = address;
+    out_socket->SetRecvCallback(MakeCallback(&MyApp::HandleReceive, this));
 
 	//Ptr<Packet> packet = out_socket->Recv();
 	//uint8_t buffer[5];
@@ -117,7 +127,7 @@ public:
   Ptr<Socket> successor;
   Ptr<Node> m_node;
 
-  std::vector< Ptr<Socket> > connected_sockets;
+  std::map< Ptr<Socket>, Address > socket_address;
 
   std::map<size_t, std::string> items;
 };
