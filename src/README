@@ -1,0 +1,16 @@
+-- P2PFS --
+
+TODO: improve this README
+
+To run:
+
+Build ns3.16 and:
+$ ./waf install
+
+Now go to p2pfs and type:
+
+$ make
+
+To run:
+
+$ ./tcp_sock
