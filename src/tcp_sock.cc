@@ -11,6 +11,12 @@
 
 using namespace ns3;
 
+/*size_t hash(uint32_t n)
+{
+  std::tr1::hash<std::string> hash_fn;
+  return hash_fn(n);
+}*/
+
 enum Command {
 	FIND_SUCCESSOR = 0
 };
@@ -41,6 +47,7 @@ public:
   {
   	std::cout << "Someone connected from ";
 	InetSocketAddress::ConvertFrom(from).GetIpv4().Print(std::cout);
+	//std::cout << ' ' << hash(InetSocketAddress::ConvertFrom(from).GetIpv4().Get());
 	std::cout << '\n';
 
 	socket_address[s] = from;
@@ -131,6 +138,7 @@ public:
 
   std::map<size_t, std::string> items;
 };
+
 
 //static void
 //CountRx (Ptr<const Packet> packet, const Address & socketAddress)
