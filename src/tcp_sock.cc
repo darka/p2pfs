@@ -11,10 +11,16 @@
 
 using namespace ns3;
 
-uint32_t hash(uint32_t n)
+// you stole this from the web, replace with something that makes more sense
+uint32_t hash(uint32_t key)
 {
-  std::hash<uint32_t> hash_fn;
-  return (uint32_t)hash_fn(n);
+  key += ~(key << 15);
+  key ^=  (key >> 10);
+  key +=  (key << 3);
+  key ^=  (key >> 6);
+  key += ~(key << 11);
+  key ^=  (key >> 16);
+  return key;
 }
 
 enum Command {
@@ -35,7 +41,7 @@ public:
   , successor(0)
   , m_node(node)
   , is_own_successor(false)
-  , my_hash(h1)
+  , myHash(h1)
   {
   	h1++;
   }
@@ -48,12 +54,12 @@ public:
 	in_socket->Listen();
 	in_socket->SetAcceptCallback(MakeNullCallback<bool, Ptr<Socket>, const Address &> (), 
 	                             MakeCallback(&MyApp::HandleAccept, this));
-	std::cout << my_hash << " <- started in_socket\n";
+	std::cout << myHash << " <- started in_socket\n";
   }
 
   void HandleAccept(Ptr<Socket> s, const Address& from)
   {
-  	std::cout << my_hash << " Someone connected from ";
+  	std::cout << myHash << " Someone connected from ";
 	InetSocketAddress::ConvertFrom(from).GetIpv4().Print(std::cout);
 	std::cout << ' ' << hash(InetSocketAddress::ConvertFrom(from).GetIpv4().Get());
 	std::cout << '\n';
@@ -79,24 +85,48 @@ public:
 	}
 	else
 	{
-  	  uint8_t buffer[5];
+  	  uint8_t buffer[9];
   	  packet->CopyData(buffer, sizeof(buffer));
 	  Command command = (Command)buffer[0];
       uint32_t new_hash;
 	  switch (command)
 	  {
 	  	case ASK_FOR_SUCCESSOR:
-		  SendMessageReceiveSuccessor(s);
+		  {
+			 uint32_t askedHash = byteArrayToInt(&buffer[1]);
+			 if (is_own_successor)
+			 {
+			 	SendMessageReceiveSuccessor(s);
+			 }
+
+			 if (askedHash < myHash)
+			 {
+		     	SendMessageReceiveSuccessor(s);
+			 }	
+		  }
+		  break;
+		case RECEIVE_SUCCESSOR:
+		  {
+			 // 4 bytes - id
+			 // 4 bytes - ip of successor of id
+			 uint32_t id = byteArrayToInt(&buffer[1]);
+			 uint32_t successorIp = byteArrayToInt(&buffer[5]);
+			 std::cout << myHash << "successor for id " << id << " is " << successorIp << '\n';
+			 if (id != myHash)
+			 {
+			 	
+			 }
+		  }
 		  break;
 		case ASK_FOR_MY_HASH:
 		  SendMessageReceiveHash(s);
-		  if (!my_hash) // Ask back for my own hash
+		  if (!myHash) // Ask back for my own hash
 		  	GetHash(ip_to_address[socket_address[s]]);
 		  break;
 		case RECEIVE_MY_HASH:
 		  new_hash = byteArrayToInt(&buffer[1]);
-		  std::cout << my_hash << " new hash is: " << new_hash << '\n';
-		  my_hash = new_hash;
+		  std::cout << myHash << " new hash is: " << new_hash << '\n';
+		  myHash = new_hash;
 		  break;
 		default:
 		  break;
@@ -143,21 +173,28 @@ public:
   }
 
 
-  void GetSuccessor(Address address)
+  void GetMySuccessor(Address address)
   {
     Ptr<Socket> out_socket = GetSocket(address);
-	// ask address for successor
-	SendMessageAskForSuccessor(out_socket);
+	if (myHash)
+	{
+		SendMessageAskForSuccessor(out_socket, myHash);
+	}
+	else
+	{
+		GetHash(address);
+	}
   }
 
-  void SendMessageAskForSuccessor(Ptr<Socket> socket)
+  void SendMessageAskForSuccessor(Ptr<Socket> socket, uint32_t hash)
   {
-	uint8_t buffer[1];
+	uint8_t buffer[5];
 	buffer[0] = (uint8_t)ASK_FOR_SUCCESSOR;
+	intToByteArray(myHash, &buffer[1]);
 	Ptr<Packet> packet;
 	packet = Create< Packet >(buffer, sizeof(buffer));
     socket->Send(packet);
-	std::cout << my_hash << " ASKED FOR SUCCESSOR\n";
+	std::cout << myHash << " ASKED FOR SUCCESSOR\n";
   }
 
   void SendMessageAskForMyHash(Ptr<Socket> socket)
@@ -167,7 +204,7 @@ public:
 	Ptr<Packet> packet;
 	packet = Create< Packet >(buffer, sizeof(buffer));
     socket->Send(packet);
-	std::cout << my_hash << " ASKED FOR HASH\n";
+	std::cout << myHash << " ASKED FOR HASH\n";
   }  
   
   void SendMessageReceiveHash(Ptr<Socket> socket)
@@ -178,7 +215,7 @@ public:
 	  intToByteArray(h, &buffer[1]);
       Ptr<Packet> packet = Create <Packet> (buffer, sizeof(buffer));
       socket->Send(packet);
-	  std::cout << my_hash << " RECEIVE HASH -> SENT\n";
+	  std::cout << myHash << " RECEIVE HASH -> SENT\n";
   }
 
   void SendMessageReceiveSuccessor(Ptr<Socket> socket)
@@ -221,15 +258,13 @@ public:
 	return ret;
   }
 
-
   Ptr<Socket> in_socket;
-  Ptr<Socket> predecessor;
-  Ptr<Socket> successor;
-  Address predecessorAddr;
-  Address successorAddr;
+  uint32_t predecessor;
+  uint32_t predecessorHash;
+  uint32_t successor;
+  uint32_t successorHash;
   Ptr<Node> m_node;
   
-
   std::map< Ptr<Socket>, uint32_t > socket_address;
   std::map< uint32_t, Ptr<Socket> > address_socket;
 
@@ -237,7 +272,8 @@ public:
 
   std::map<size_t, std::string> items;
   bool is_own_successor;
-  uint32_t my_hash;
+  uint32_t myHash;
+  std::map< uint32_t, uint32_t > askingClientIp;
 };
 
 
