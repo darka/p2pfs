@@ -25,6 +25,7 @@ enum Command {
 	RECEIVE_MY_HASH = 4
 };
 
+int h1 = 0;
 class MyApp : public Application 
 {
 public:
@@ -34,9 +35,9 @@ public:
   , successor(0)
   , m_node(node)
   , is_own_successor(false)
-  , my_hash(0)
+  , my_hash(h1)
   {
-  	
+  	h1++;
   }
 
   void StartApplication()
@@ -79,6 +80,7 @@ public:
   	  uint8_t buffer[5];
   	  packet->CopyData(buffer, sizeof(buffer));
 	  Command command = (Command)buffer[0];
+      uint32_t new_hash;
 	  switch (command)
 	  {
 	  	case ASK_FOR_SUCCESSOR:
@@ -86,12 +88,13 @@ public:
 		  break;
 		case ASK_FOR_MY_HASH:
 		  SendMessageReceiveHash(s);
-		  if (!my_hash)
-		  	SendMessageAskForMyHash(s);
+		  //if (!my_hash) // Ask back for my own hash
+		  //	GetHash(socket_address[s]);
 		  break;
 		case RECEIVE_MY_HASH:
-		  my_hash = byteArrayToInt(&buffer[1]);
-		  std::cout << "my hash is: " << my_hash << '\n';
+		  new_hash = byteArrayToInt(&buffer[1]);
+		  std::cout << my_hash << " new hash is: " << new_hash << '\n';
+		  my_hash = new_hash;
 		  break;
 		default:
 		  break;
@@ -103,39 +106,43 @@ public:
   {
 	if (in_socket) 
 	  in_socket->Close();
+	for (std::map< Ptr<Socket>, Address >::iterator i = socket_address.begin(); i != socket_address.end(); ++i)
+	{
+	  i->first->Close();
+	}
+  }
+
+  Ptr<Socket> GetSocket(Address address)
+  {
+    std::map< Address, Ptr<Socket> >::iterator result = address_socket.find(address);
+	if (result != address_socket.end())
+	{
+		return result->second;
+	}
+	else
+	{
+	  Ptr<Socket> out_socket = Socket::CreateSocket(m_node, TcpSocketFactory::GetTypeId());
+	  out_socket->Bind();
+	  out_socket->Connect(address);
+      out_socket->SetRecvCallback(MakeCallback(&MyApp::HandleReceive, this));
+	  socket_address[out_socket] = address;
+	  address_socket[address] = out_socket;
+	  return out_socket;
+	}
   }
 
   void GetHash(Address address)
   {
-    Ptr<Socket> out_socket = Socket::CreateSocket(m_node, TcpSocketFactory::GetTypeId());
-	out_socket->Bind();
-	out_socket->Connect(address);
-
-	// callback to get answer
-    out_socket->SetRecvCallback(MakeCallback(&MyApp::HandleReceive, this));
-	// ask address for successor
+    Ptr<Socket> out_socket = GetSocket(address);
 	SendMessageAskForMyHash(out_socket);
-	socket_address[out_socket] = address;
-
-	// TODO: can this Close before we receive the answer?
-	out_socket->Close();
   }
 
 
   void GetSuccessor(Address address)
   {
-    Ptr<Socket> out_socket = Socket::CreateSocket(m_node, TcpSocketFactory::GetTypeId());
-	out_socket->Bind();
-	out_socket->Connect(address);
-
-	// callback to get answer
-    out_socket->SetRecvCallback(MakeCallback(&MyApp::HandleReceive, this));
+    Ptr<Socket> out_socket = GetSocket(address);
 	// ask address for successor
 	SendMessageAskForSuccessor(out_socket);
-	socket_address[out_socket] = address;
-
-	// TODO: can this Close before we receive the answer?
-	out_socket->Close();
   }
 
   void SendMessageAskForSuccessor(Ptr<Socket> socket)
@@ -145,7 +152,7 @@ public:
 	Ptr<Packet> packet;
 	packet = Create< Packet >(buffer, sizeof(buffer));
     socket->Send(packet);
-	std::cout << "ASKED FOR SUCCESSOR\n";
+	std::cout << my_hash << " ASKED FOR SUCCESSOR\n";
   }
 
   void SendMessageAskForMyHash(Ptr<Socket> socket)
@@ -155,7 +162,7 @@ public:
 	Ptr<Packet> packet;
 	packet = Create< Packet >(buffer, sizeof(buffer));
     socket->Send(packet);
-	std::cout << "ASKED FOR HASH\n";
+	std::cout << my_hash << " ASKED FOR HASH\n";
   }  
   
   void SendMessageReceiveHash(Ptr<Socket> socket)
@@ -166,7 +173,7 @@ public:
 	  intToByteArray(h, &buffer[1]);
       Ptr<Packet> packet = Create <Packet> (buffer, sizeof(buffer));
       socket->Send(packet);
-	  std::cout << "RECEIVE HASH -> SENT\n";
+	  std::cout << my_hash << " RECEIVE HASH -> SENT\n";
   }
 
   void SendMessageReceiveSuccessor(Ptr<Socket> socket)
@@ -219,6 +226,7 @@ public:
   
 
   std::map< Ptr<Socket>, Address > socket_address;
+  std::map< Address, Ptr<Socket> > address_socket;
 
   std::map<size_t, std::string> items;
   bool is_own_successor;
