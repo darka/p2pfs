@@ -99,6 +99,7 @@ public:
 			{
 			case I_AM_SUCCESSOR:
 				successorHash = byteArrayToInt(&buffer[1]);
+				std::cout << myHash << " successor " << successorHash << '\n';
 				successor = socketAddress[s];
 				break;
 			case ASK_FOR_SUCCESSOR:
@@ -133,9 +134,9 @@ public:
 					{
 						successorHash = byteArrayToInt(&buffer[5]);
 						successor = byteArrayToInt(&buffer[9]);
+						std::cout << myHash << " successor is " << successorHash << '\n';
 					}
 					//uint32_t successorIp = byteArrayToInt(&buffer[5]);
-				//	std::cout << myHash << "successor for id " << id << " is " << successorIp << '\n';
 					//if (id != myHash)
 					//{
 						
@@ -243,7 +244,7 @@ public:
 		std::cout << myHash << " RECEIVE HASH -> SENT\n";
 	}
 
-	void SendMessageReceiveSuccessor(Ptr<Socket> socket, uint8_t questionHash)
+	void SendMessageReceiveSuccessor(Ptr<Socket> socket, uint32_t questionHash)
 	{
 		if (isOwnSuccessor)
 		{
