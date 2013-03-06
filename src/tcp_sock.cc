@@ -11,6 +11,8 @@
 
 using namespace ns3;
 
+uint16_t FS_PORT = 8080;
+
 // you stole this from the web, replace with something that makes more sense
 uint32_t hash(uint32_t key)
 {
@@ -29,7 +31,10 @@ enum Command
 	RECEIVE_SUCCESSOR = 1,
 	I_AM_SUCCESSOR = 2,
 	ASK_FOR_MY_HASH = 3,
-	RECEIVE_MY_HASH = 4
+	RECEIVE_MY_HASH = 4,
+	LOOKUP_VALUE = 5,
+	RECEIVE_VALUE = 6,
+	STORE_VALUE = 7
 };
 
 int h1 = 0;
@@ -102,14 +107,49 @@ public:
 				std::cout << myHash << " successor " << successorHash << '\n';
 				successor = socketAddress[s];
 				break;
+			case RECEIVE_VALUE:
+				{
+					uint32_t value = byteArrayToInt(&buffer[1]);
+					std::cout << myHash << " received value: " << value << '\n';
+				}
+			case LOOKUP_VALUE:
+				{
+					uint32_t ip = byteArrayToInt(&buffer[1]);
+					uint32_t key = byteArrayToInt(&buffer[5]);
+					if (myHash < key && key <= successorHash)
+					{
+						SendMessageReceiveValue(GetSocket(ip), key);
+					}
+					else
+					{
+						SendMessageAskForValue(GetSocket(successor), ip, key);
+					}
+				}
+			case STORE_VALUE:
+				{
+					uint32_t key = byteArrayToInt(&buffer[1]);
+					uint32_t value = byteArrayToInt(&buffer[5]);
+					if (myHash < key && key <= successorHash)
+					{
+						lookupData[key] = value;
+					}
+					else
+					{
+						SendMessageStoreValue(GetSocket(successor), key, value);
+					}
+				}
 			case ASK_FOR_SUCCESSOR:
 				{
 					uint32_t askedHash = byteArrayToInt(&buffer[1]);
-					if (isOwnSuccessor || (/*myHash < askedHash && */askedHash <= successorHash))
+					if (isOwnSuccessor || (myHash < askedHash && askedHash <= successorHash))
 					{
 						// this node has the same successor as the node which asked
-						SendMessageReceiveSuccessor(s, askedHash);
+						SendMessageReceiveSuccessor(s, successorHash, successor);
 					}	
+					else if (askedHash < myHash)
+					{
+						SendMessageReceiveMeAsSuccessor(s);
+					}
 					else
 					{
 						// continue search via the ring
@@ -123,19 +163,18 @@ public:
 					std::cout << myHash << " RECEIVED SUCCESSOR!!\n";
 					// 4 bytes - id
 					// 4 bytes - ip of successor of id
-					uint32_t questionHash = byteArrayToInt(&buffer[1]);
-					if (questionHash != myHash)
-					{
-						uint32_t sendBackIp = onGoingSearches[questionHash];
-						packet = Create< Packet >(buffer, sizeof(buffer));
-						addressSocket[sendBackIp]->Send(packet);
-					}
-					else
-					{
-						successorHash = byteArrayToInt(&buffer[5]);
-						successor = byteArrayToInt(&buffer[9]);
-						std::cout << myHash << " successor is " << successorHash << '\n';
-					}
+					//if (questionHash != myHash)
+					//{
+					//	uint32_t sendBackIp = onGoingSearches[questionHash];
+					//	packet = Create< Packet >(buffer, sizeof(buffer));
+					//	addressSocket[sendBackIp]->Send(packet);
+					//}
+					//else
+					//{
+					successorHash = byteArrayToInt(&buffer[1]);
+					successor = byteArrayToInt(&buffer[5]);
+					std::cout << myHash << " successor is " << successorHash << '\n';
+					//}
 					//uint32_t successorIp = byteArrayToInt(&buffer[5]);
 					//if (id != myHash)
 					//{
@@ -170,6 +209,31 @@ public:
 		for (std::map< Ptr<Socket>, uint32_t >::iterator i = socketAddress.begin(); i != socketAddress.end(); ++i)
 		{
 			i->first->Close();
+		}
+	}
+
+	Ptr<Socket> GetSocket(uint32_t ip)
+	{
+		std::map< uint32_t, Ptr<Socket> >::iterator result = addressSocket.find(ip);
+		if (result != addressSocket.end())
+		{
+			std::cout << "found socket\n";
+			return result->second;
+		}
+		else
+		{
+			Ptr<Socket> outSocket = Socket::CreateSocket(myNode, TcpSocketFactory::GetTypeId());
+			outSocket->Bind();
+
+			Ipv4Address addressIpv4(ip);
+			InetSocketAddress address(addressIpv4, FS_PORT);
+			outSocket->Connect(address);
+
+			outSocket->SetRecvCallback(MakeCallback(&MyApp::HandleReceive, this));
+			socketAddress[outSocket] = ip;
+			addressSocket[ip] = outSocket;
+			ipToAddress[ip] = address;
+			return outSocket;
 		}
 	}
 
@@ -212,6 +276,24 @@ public:
 		SendMessageAskForSuccessor(outSocket, hash);
 	}
 
+	//void LookupValue(Address address, uint32_t key)
+	//{
+	//	Ptr<Socket> outSocket = GetSocket(address);
+	//	SendMessageAskForSuccessor(outSocket, hash);
+	//}
+
+	void SendMessageAskForValue(Ptr<Socket> socket, uint32_t ip, uint32_t hash)
+	{
+		uint8_t buffer[9];
+		buffer[0] = (uint8_t)LOOKUP_VALUE;
+		intToByteArray(ip, &buffer[1]);
+		intToByteArray(hash, &buffer[5]);
+		Ptr<Packet> packet;
+		packet = Create<Packet>(buffer, sizeof(buffer));
+		socket->Send(packet);
+		std::cout << myHash << " ASKED FOR VALUE\n";
+	}
+
 	void SendMessageAskForSuccessor(Ptr<Socket> socket, uint32_t hash)
 	{
 		uint8_t buffer[5];
@@ -221,6 +303,33 @@ public:
 		packet = Create<Packet>(buffer, sizeof(buffer));
 		socket->Send(packet);
 		std::cout << myHash << " ASKED FOR SUCCESSOR\n";
+	}
+
+	void SendMessageStoreValue(Ptr<Socket> socket, uint32_t value)
+	{
+		SendMessageStoreValue(socket, hash(value), value);
+	}
+
+	void SendMessageStoreValue(Ptr<Socket> socket, uint32_t key, uint32_t value)
+	{
+		uint8_t buffer[9];
+		buffer[0] = (uint8_t)STORE_VALUE;
+		intToByteArray(key, &buffer[1]);
+		intToByteArray(key, &buffer[5]);
+		Ptr<Packet> packet;
+		packet = Create<Packet>(buffer, sizeof(buffer));
+		socket->Send(packet);
+		std::cout << myHash << "LOOKING WHERE TO STORE VALUE " << value << "\n";
+	}
+
+	void SendMessageReceiveValue(Ptr<Socket> socket, uint32_t key)
+	{
+		uint8_t buffer[5];
+		buffer[0] = (uint8_t)RECEIVE_VALUE;
+		intToByteArray(lookupData[key], &buffer[1]);
+		Ptr<Packet> packet = Create <Packet> (buffer, sizeof(buffer));
+		socket->Send(packet);
+		std::cout << myHash << " RECEIVE VALUE -> SENT\n";
 	}
 
 	void SendMessageAskForMyHash(Ptr<Socket> socket)
@@ -244,7 +353,17 @@ public:
 		std::cout << myHash << " RECEIVE HASH -> SENT\n";
 	}
 
-	void SendMessageReceiveSuccessor(Ptr<Socket> socket, uint32_t questionHash)
+	void SendMessageReceiveMeAsSuccessor(Ptr<Socket> socket)
+	{
+		uint8_t buffer[5];
+		buffer[0] = (uint8_t)I_AM_SUCCESSOR;
+		intToByteArray(myHash, &buffer[1]);
+		Ptr<Packet> packet = Create <Packet> (buffer, sizeof(buffer));
+		socket->Send(packet);
+		std::cout << myHash << " RECEIVE SUCCESSOR -> SENT (I AM SUCCESSOR)\n";
+	}
+
+	void SendMessageReceiveSuccessor(Ptr<Socket> socket, uint32_t successorHash, uint32_t successor)
 	{
 		if (isOwnSuccessor)
 		{
@@ -259,9 +378,8 @@ public:
 		{
 			uint8_t buffer[13];
 			buffer[0] = (uint8_t)RECEIVE_SUCCESSOR;
-			intToByteArray(questionHash, &buffer[1]);
-			intToByteArray(successorHash, &buffer[5]);
-			intToByteArray(successor, &buffer[9]);
+			intToByteArray(successorHash, &buffer[1]);
+			intToByteArray(successor, &buffer[5]);
 			Ptr<Packet> packet = Create <Packet> (buffer, sizeof(buffer));
 			socket->Send(packet);
 			std::cout << myHash << " RECEIVE SUCCESSOR -> SENT\n";
@@ -303,6 +421,7 @@ public:
 	bool hasHash;
 	uint32_t myHash;
 	std::map< uint32_t, uint32_t > onGoingSearches; // hash -> address (see Joining Logic)
+	std::map< uint32_t, uint32_t > lookupData; // key -> value data store
 };
 
 
@@ -332,10 +451,9 @@ main (int argc, char *argv[])
 	address.SetBase ("10.1.1.0", "255.255.255.0");
 	Ipv4InterfaceContainer interfaces = address.Assign (devices);
 
-	uint16_t sinkPort = 8080;
-	Address creatorAddress (InetSocketAddress (interfaces.GetAddress (2), sinkPort));
-	Address appAddress (InetSocketAddress (interfaces.GetAddress (1), sinkPort));
-	Address appTwoAddress (InetSocketAddress (interfaces.GetAddress (0), sinkPort));
+	Address creatorAddress (InetSocketAddress (interfaces.GetAddress (2), FS_PORT));
+	Address appAddress (InetSocketAddress (interfaces.GetAddress (1), FS_PORT));
+	Address appTwoAddress (InetSocketAddress (interfaces.GetAddress (0), FS_PORT));
 
 	Ptr<MyApp> creator = CreateObject<MyApp> (nodes.Get(2));
 	nodes.Get(2)->AddApplication(creator);
@@ -349,10 +467,8 @@ main (int argc, char *argv[])
 	Simulator::Schedule( Seconds(9), &MyApp::GetHash, app2, creatorAddress);
 	Simulator::Schedule( Seconds(12), &MyApp::GetSuccessor, app2, creatorAddress);
 
-
 	Simulator::Schedule( Seconds(15), &MyApp::GetHash, app, appTwoAddress );
 	Simulator::Schedule( Seconds(18), &MyApp::GetSuccessor, app, appTwoAddress );
-	Simulator::Schedule( Seconds(28), &MyApp::GetHash, app2, creatorAddress);
 	Simulator::Stop ();
 	Simulator::Run ();
 	Simulator::Destroy ();
