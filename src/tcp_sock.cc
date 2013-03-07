@@ -34,7 +34,8 @@ enum Command
 	RECEIVE_MY_HASH = 4,
 	LOOKUP_VALUE = 5,
 	RECEIVE_VALUE = 6,
-	STORE_VALUE = 7
+	STORE_VALUE = 7,
+	RELOOKUP_VALUE = 8
 };
 
 int h1 = 0;
@@ -88,6 +89,11 @@ public:
 		GetSuccessor(address);
 	}
 
+	void LookupKey(uint32_t key)
+	{
+		SendMessageAskForValue(GetSocket(successor), key);
+	}
+
 	void HandleReceive(Ptr<Socket> s)
 	{
 		Ptr<Packet> packet = s->Recv();
@@ -112,7 +118,8 @@ public:
 					uint32_t value = byteArrayToInt(&buffer[1]);
 					std::cout << myHash << " received value: " << value << '\n';
 				}
-			case LOOKUP_VALUE:
+				break;
+			case RELOOKUP_VALUE:
 				{
 					uint32_t ip = byteArrayToInt(&buffer[1]);
 					uint32_t key = byteArrayToInt(&buffer[5]);
@@ -122,9 +129,23 @@ public:
 					}
 					else
 					{
-						SendMessageAskForValue(GetSocket(successor), ip, key);
+						SendMessageReaskForValue(GetSocket(successor), ip, key);
 					}
 				}
+				break;
+			case LOOKUP_VALUE:
+				{
+					uint32_t key = byteArrayToInt(&buffer[1]);
+					if (myHash < key && key <= successorHash)
+					{
+						SendMessageReceiveValue(s, key);
+					}
+					else
+					{
+						SendMessageReaskForValue(GetSocket(successor), socketAddress[s], key);
+					}
+				}
+				break;
 			case STORE_VALUE:
 				{
 					uint32_t key = byteArrayToInt(&buffer[1]);
@@ -132,12 +153,14 @@ public:
 					if (myHash < key && key <= successorHash)
 					{
 						lookupData[key] = value;
+						std::cout << "stored value " << value << " (key " << key << ") at " << myHash << '\n';
 					}
 					else
 					{
 						SendMessageStoreValue(GetSocket(successor), key, value);
 					}
 				}
+				break;
 			case ASK_FOR_SUCCESSOR:
 				{
 					uint32_t askedHash = byteArrayToInt(&buffer[1]);
@@ -217,7 +240,7 @@ public:
 		std::map< uint32_t, Ptr<Socket> >::iterator result = addressSocket.find(ip);
 		if (result != addressSocket.end())
 		{
-			std::cout << "found socket\n";
+			//std::cout << "found socket\n";
 			return result->second;
 		}
 		else
@@ -243,7 +266,7 @@ public:
 		std::map< uint32_t, Ptr<Socket> >::iterator result = addressSocket.find(ip);
 		if (result != addressSocket.end())
 		{
-			std::cout << "found socket\n";
+			//std::cout << "found socket\n";
 			return result->second;
 		}
 		else
@@ -282,12 +305,23 @@ public:
 	//	SendMessageAskForSuccessor(outSocket, hash);
 	//}
 
-	void SendMessageAskForValue(Ptr<Socket> socket, uint32_t ip, uint32_t hash)
+	void SendMessageReaskForValue(Ptr<Socket> socket, uint32_t ip, uint32_t hash)
+	{
+		uint8_t buffer[9];
+		buffer[0] = (uint8_t)RELOOKUP_VALUE;
+		intToByteArray(ip, &buffer[1]);
+		intToByteArray(hash, &buffer[5]);
+		Ptr<Packet> packet;
+		packet = Create<Packet>(buffer, sizeof(buffer));
+		socket->Send(packet);
+		std::cout << myHash << " REASKED FOR VALUE\n";
+	}
+
+	void SendMessageAskForValue(Ptr<Socket> socket, uint32_t hash)
 	{
 		uint8_t buffer[9];
 		buffer[0] = (uint8_t)LOOKUP_VALUE;
-		intToByteArray(ip, &buffer[1]);
-		intToByteArray(hash, &buffer[5]);
+		intToByteArray(hash, &buffer[1]);
 		Ptr<Packet> packet;
 		packet = Create<Packet>(buffer, sizeof(buffer));
 		socket->Send(packet);
@@ -305,6 +339,11 @@ public:
 		std::cout << myHash << " ASKED FOR SUCCESSOR\n";
 	}
 
+	void StoreValue(uint32_t value)
+	{
+		SendMessageStoreValue(GetSocket(successor), 3278655985, value);
+	}
+
 	void SendMessageStoreValue(Ptr<Socket> socket, uint32_t value)
 	{
 		SendMessageStoreValue(socket, hash(value), value);
@@ -315,11 +354,11 @@ public:
 		uint8_t buffer[9];
 		buffer[0] = (uint8_t)STORE_VALUE;
 		intToByteArray(key, &buffer[1]);
-		intToByteArray(key, &buffer[5]);
+		intToByteArray(value, &buffer[5]);
 		Ptr<Packet> packet;
 		packet = Create<Packet>(buffer, sizeof(buffer));
 		socket->Send(packet);
-		std::cout << myHash << "LOOKING WHERE TO STORE VALUE " << value << "\n";
+		std::cout << myHash << " LOOKING WHERE TO STORE VALUE " << value << " with key(" << key << ")\n";
 	}
 
 	void SendMessageReceiveValue(Ptr<Socket> socket, uint32_t key)
@@ -431,7 +470,7 @@ main (int argc, char *argv[])
 	CommandLine cmd;
 	cmd.Parse (argc, argv);
 	NodeContainer nodes;
-	nodes.Create (3);
+	nodes.Create (4);
 
 	CsmaHelper eth;
 	eth.SetChannelAttribute("DataRate", DataRateValue(DataRate(5000000)));
@@ -454,12 +493,15 @@ main (int argc, char *argv[])
 	Address creatorAddress (InetSocketAddress (interfaces.GetAddress (2), FS_PORT));
 	Address appAddress (InetSocketAddress (interfaces.GetAddress (1), FS_PORT));
 	Address appTwoAddress (InetSocketAddress (interfaces.GetAddress (0), FS_PORT));
+	Address appThreeAddress (InetSocketAddress (interfaces.GetAddress (3), FS_PORT));
 
 	Ptr<MyApp> creator = CreateObject<MyApp> (nodes.Get(2));
 	nodes.Get(2)->AddApplication(creator);
 
 	Ptr<MyApp> app = CreateObject<MyApp> (nodes.Get (1));
 	nodes.Get (1)->AddApplication(app);
+	Ptr<MyApp> app3 = CreateObject<MyApp> (nodes.Get (3));
+	nodes.Get (3)->AddApplication(app3);
 	Ptr<MyApp> app2 = CreateObject<MyApp> (nodes.Get (0));
 	nodes.Get (0)->AddApplication(app2);
 
@@ -469,6 +511,11 @@ main (int argc, char *argv[])
 
 	Simulator::Schedule( Seconds(15), &MyApp::GetHash, app, appTwoAddress );
 	Simulator::Schedule( Seconds(18), &MyApp::GetSuccessor, app, appTwoAddress );
+	Simulator::Schedule( Seconds(15), &MyApp::GetHash, app3, appAddress );
+	Simulator::Schedule( Seconds(18), &MyApp::GetSuccessor, app3, appAddress );
+	Simulator::Schedule( Seconds(32), &MyApp::StoreValue, app, 12 );
+	Simulator::Schedule( Seconds(48), &MyApp::LookupKey, app3, 3278655985 );
+	//Simulator::Schedule( Seconds(100), &MyApp::GetSuccessor, app, appTwoAddress );
 	Simulator::Stop ();
 	Simulator::Run ();
 	Simulator::Destroy ();
