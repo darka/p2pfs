@@ -339,9 +339,9 @@ public:
 		std::cout << myHash << " ASKED FOR SUCCESSOR\n";
 	}
 
-	void StoreValue(uint32_t value)
+	void StoreValue(uint32_t key, uint32_t value)
 	{
-		SendMessageStoreValue(GetSocket(successor), 3278655985, value);
+		SendMessageStoreValue(GetSocket(successor), key, value);
 	}
 
 	void SendMessageStoreValue(Ptr<Socket> socket, uint32_t value)
@@ -491,31 +491,34 @@ main (int argc, char *argv[])
 	Ipv4InterfaceContainer interfaces = address.Assign (devices);
 
 	Address creatorAddress (InetSocketAddress (interfaces.GetAddress (2), FS_PORT));
-	Address appAddress (InetSocketAddress (interfaces.GetAddress (1), FS_PORT));
-	Address appTwoAddress (InetSocketAddress (interfaces.GetAddress (0), FS_PORT));
-	Address appThreeAddress (InetSocketAddress (interfaces.GetAddress (3), FS_PORT));
+	Address nodeAddressA (InetSocketAddress (interfaces.GetAddress (1), FS_PORT));
+	Address nodeAddressB (InetSocketAddress (interfaces.GetAddress (0), FS_PORT));
+	Address nodeAddressC (InetSocketAddress (interfaces.GetAddress (3), FS_PORT));
 
 	Ptr<MyApp> creator = CreateObject<MyApp> (nodes.Get(2));
 	nodes.Get(2)->AddApplication(creator);
 
-	Ptr<MyApp> app = CreateObject<MyApp> (nodes.Get (1));
-	nodes.Get (1)->AddApplication(app);
-	Ptr<MyApp> app3 = CreateObject<MyApp> (nodes.Get (3));
-	nodes.Get (3)->AddApplication(app3);
-	Ptr<MyApp> app2 = CreateObject<MyApp> (nodes.Get (0));
-	nodes.Get (0)->AddApplication(app2);
+	Ptr<MyApp> nodeA = CreateObject<MyApp> (nodes.Get (1));
+	nodes.Get (1)->AddApplication(nodeA);
+	Ptr<MyApp> nodeB = CreateObject<MyApp> (nodes.Get (0));
+	nodes.Get (0)->AddApplication(nodeB);
+	Ptr<MyApp> nodeC = CreateObject<MyApp> (nodes.Get (3));
+	nodes.Get (3)->AddApplication(nodeC);
 
 	Simulator::Schedule( Seconds(3), &MyApp::CreateRing, creator);
-	Simulator::Schedule( Seconds(9), &MyApp::GetHash, app2, creatorAddress);
-	Simulator::Schedule( Seconds(12), &MyApp::GetSuccessor, app2, creatorAddress);
 
-	Simulator::Schedule( Seconds(15), &MyApp::GetHash, app, appTwoAddress );
-	Simulator::Schedule( Seconds(18), &MyApp::GetSuccessor, app, appTwoAddress );
-	Simulator::Schedule( Seconds(15), &MyApp::GetHash, app3, appAddress );
-	Simulator::Schedule( Seconds(18), &MyApp::GetSuccessor, app3, appAddress );
-	Simulator::Schedule( Seconds(32), &MyApp::StoreValue, app, 12 );
-	Simulator::Schedule( Seconds(48), &MyApp::LookupKey, app3, 3278655985 );
-	//Simulator::Schedule( Seconds(100), &MyApp::GetSuccessor, app, appTwoAddress );
+	// create a ring of 4 nodes
+	Simulator::Schedule( Seconds(9), &MyApp::GetHash, nodeB, creatorAddress);
+	Simulator::Schedule( Seconds(12), &MyApp::GetSuccessor, nodeB, creatorAddress);
+	Simulator::Schedule( Seconds(15), &MyApp::GetHash, nodeA, nodeAddressB );
+	Simulator::Schedule( Seconds(18), &MyApp::GetSuccessor, nodeA, nodeAddressB );
+	Simulator::Schedule( Seconds(15), &MyApp::GetHash, nodeC, nodeAddressA );
+	Simulator::Schedule( Seconds(18), &MyApp::GetSuccessor, nodeC, nodeAddressA );
+
+	// key lookup test
+	Simulator::Schedule( Seconds(32), &MyApp::StoreValue, nodeA, 3278655985, 12 );
+	Simulator::Schedule( Seconds(48), &MyApp::LookupKey, nodeC, 3278655985 );
+
 	Simulator::Stop ();
 	Simulator::Run ();
 	Simulator::Destroy ();
