@@ -1,0 +1,182 @@
+\documentclass[8pt,a4paper]{article}
+%\documentclass[10pt,a4paper,twocolumn]{article}
+\usepackage{amssymb,amsmath}
+\usepackage{graphicx}
+%\usepackage{times}
+\usepackage{float}
+\usepackage{algorithmic}
+
+\title{Distributed Peer-to-peer File System}  
+\author{Darius Scerbavicius} 
+\date{25th January 2013}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This proposal describes the design of a Distributed Peer-to-peer File System aiming for simplicity and efficiency. A brief overview of projects with similar goals is given, along with their drawbacks and differences from the proposed implementation. A description of the most important problems, such as replication, versioning, and security that the distributed file system faces is provided, as well as how they will be solved. The project will target real world deployments, and will be evaluated using commonly accepted benchmarks, such as the Andrew benchmark. The prototype implementation will be published under an open source license.
+\end{abstract}
+
+\section{Purpose}
+The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. 
+
+The project consists of developing a back-end based on a peer-to-peer distributed hash table algorithm, and a front-end, which would allow users to place and retrieve files from the file system.
+
+The project will strive for:
+\begin{enumerate}
+\item simplicity, so that potential open source contributors find the project easy to grasp, thus enabling them to submit contributions;
+\item efficiency, since users will only consider the file system useful if it offers good performance.
+\end{enumerate}
+
+\section{Background}
+
+A number of companies are providing a remote synchronized directory service, with the most famous examples being Dropbox \cite{dropbox} and Google Drive \cite{gdrive}. These services are not deployed in a peer-to-peer manner -- the user's files are stored on the servers of the company which provides the services. This means, that if the company ever goes out of business, decides to stop offering the service, or simply changes the terms of the service to ones that the user disagrees with, the user will no longer be able to use the service. 
+Furthermore, the proposed project has the potential to offer much more free space to its users than any of the currently available centralised services.
+
+During the last 15 years, a lot of promising technology has been developed that can eliminate the providing vendors while offering the same high quality service. 
+Systems based on a Distributed Hash Table (DHT) have allowed lookup services to be implemented in a completely decentralised network, allowing any participating nodes to efficiently retrieve data. Implementations of DHTs are being successfully used in various peer-to-peer Internet services, such as BitTorrent and Coral Content Distribution Network \cite{coral}.
+
+Such technology is just as well applicable to distributed file systems. Attempts to implement such systems have been made, however all of them are catered to specific workflows, leading to a lot of complexity, which this implementation hopes to avoid.
+
+A list of decentralised peer-to-peer file systems and their drawbacks follows:
+
+\begin{description}
+  \item[CFS] \hfill \\ 
+  CFS is a decentralised peer-to-peer storage system \cite{cfs}. It is robust and efficient -- it scales well and delivers data as fast as FTP. However, it requires an administrator to configure each of the servers that run CFS, and only provides a read-only interface to clients. This prevents CFS from being used as a DropBox replacement. 
+  \item[Pastis] \hfill \\
+  Pastis is a distributed file system based on the Pastry lookup protocol \cite{pastis}. The protocol is substantially more complicated than Chord \cite{chord}, and unlike Chord has latency problems when it comes to joining nodes \cite{chordalt}.
+  \item[OceanStore] \hfill \\
+  OceanStore \cite{oceanstore} is not completely decentralised. Its architecture is partitioned into two tiers, where some nodes are deemed highly available, and others are considered more transient. This kind of partitioning leads to further complexity in the implementation, and makes it difficult to scale to large networks \cite{towards}.
+  \item[Ivy] \hfill \\
+  Ivy is another distributed file system \cite{ivy}, built with the intent of allowing different users to share data amongst each other (rather than use it as a personal storage container), leading to a much more complicated approach, involving the maintenance of transaction logs for each participant. Unlike Ivy, the proposed project emphasises simplicity and hopes to avoid such complexity.
+  \item[Infinit] \hfill \\ 
+  Infinit seems to be the most promising of current peer-to-peer storage systems. However, its main focus is the design of an access control and administration scheme for peer-to-peer file systems \cite{towards}. The described prototype is also high in complexity, and no actual implementation is currently available.
+\end{description}
+
+So far no implementations are being used outside the research community by the wider public, and no large-scale high quality open source projects capable of offering such a service have been established.
+
+\section{Methods}
+
+To build such a file system, a back-end and a front-end will be designed.
+
+\begin{itemize}
+\item The back-end will be based on a DHT (Distributed Hash Table). 
+\item The front-end of the file system will be based on FUSE (Filesystem in Userspace) \cite{fuse}.
+\end{itemize}
+The implementation will target a real world workload. The ns-3 \cite{ns3} simulator will be used to test the implementation.
+
+\subsection{Network}
+The lookup service for the DHT will be provided by the Chord peer-to-peer overlay network. Main reasons to choose Chord over other P2P services are its simplicity, the fact that it is well-studied already, and its provable correctness and performance will allow for producing a more formally grounded result \cite{chord}. %TODO: cite something (those slides?)
+
+Chord can be imagined as a network of nodes connected in a ring, where each node knows its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. The value of a key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
+
+Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer file system \cite{chord}.
+
+\subsection{Replication}
+To enable reliable file storage, the peer-to-peer network must have a system of file replication. The most basic implementation is to store the exact same replica of the file at a fixed number of successor nodes. This is in fact the suggested method for higher level applications by Chord authors \cite{chord}.
+
+In the case that this is deemed inadequate during the development process, a more complicated scheme, such as Dynamic Replication could be implemented instead \cite{dhash}.
+
+\subsection{Versioning}
+Due to the way replication works, not all copies of the file currently in the network are going to be up-to-date. To ensure that the user always receives the most recent copy, when performing a lookup, a weighted voting scheme is going to be introduced. The replicas will be assigned a version number, and each replica of a file will be assigned a certain number of votes. Whenever the file is accessed, or written to, a certain number of $r$ votes to read a file, and a certain number of $w$ votes to write a file will be collected, such that $r + w$ is more than the total number of votes assigned to file. This guarantees that any lookup will always retrieve the most recent version of the file \cite{versioning}.
+
+\subsection{Cryptography}
+
+Unlike other Peer-to-peer systems such as Freenet, the emphasis of this project is not anonymity, but instead simplicity and efficiency. Only a minimal security mechanism will be provided, where the owner's files will be encrypted using a symmetric-key algorithm, with a possible candidate being Twofish (which is being widely used in a lot of products \cite{twofishprod}).
+This will not provide complete anonymity but will prevent unauthorised access to the user's files, as long as the key is kept safe.
+
+\subsection{Access Control}
+
+Providing an access control system is not in the scope of this project, and the task of implementing such a system is left to a higher-level application. However, an API will be provided in order to make this possible. 
+
+Since the contents of the files stored on the file system will be encrypted with the owner's key, this will to an extent prevent unauthorised access to users' resources.
+
+\subsection{Front-end}
+
+The front-end of the file system will be based on FUSE, which allows implementing a file system as a user space program \cite{fuse}. This would bypass the operating system kernel, leading to greater portability, as FUSE is available for Linux, FreeBSD, NetBSD, OpenSolaris and Mac OS X. FUSE is suitable for long-term projects, as it is well-maintained, and is an official component of the Linux kernel.
+
+\section{Evaluation}
+
+As was mentioned, the implementation targets a real-world setup. However, due to limited resources, the simulator ns-3 \cite{ns3} will be used for specific test cases. This will allow for performing simulated experiments on systems involving a large number of nodes in order to determine how well the system scales, as well as performing real-world experiments with the intent of comparing performance to other well-established file systems.
+
+\begin{itemize}
+\item Well-established and commonly used benchmarks in file system evaluation are the Andrew benchmark \cite{andrew}, and the Linux kernel build \cite{kernelb}. The results obtained from running these benchmarks would be compared to results presented in other file system papers.
+
+\item As it is common to compare the performance of peer-to-peer file systems to the performance of NFS \cite{oceanstore} \cite{ivy} \cite{pastis}, a number of real world experiments would be structured upon simple operations executed on NFS, and a comparison would be produced.
+\end{itemize}
+
+\section{Outputs}
+
+A prototype of the system described will be made available as an open source project under the GPL \cite{gpl} license. The implementation will consist of a front-end and a back-end, providing full usage capabilities on any Linux-based operating system, as well as Mac OS X. Windows will not be supported, due to the lack of a mature port of FUSE. 
+
+The project will be published on a GitHub \cite{github} repository, and open to contributions from the open source community.
+
+\section{Workplan}
+
+The workplan timetable is given below (removed).
+
+As the project progresses, it is likely that changes will be made to the timetable.
+
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{10}
+\bibitem{dropbox}
+Dropbox. http://www.dropbox.com/
+\bibitem{gdrive}
+Google Drive. http://drive.google.com/start/
+\bibitem{coral}
+M. J. Freedman, E. Freudenthal, D. Mazieres.
+Democratizing content publication with Coral.
+In NSDI, Mar. 2004.
+\bibitem{ns3}
+ns-3. Discrete-event network simulator. http://www.nsnam.org/
+\bibitem{chord} 
+I. Stoica, R. Morris, D. Karger, M. F. Kaashoek, and
+H. Balakrishnan. Chord: A scalable peer-to-peer lookup
+service for internet applications. In Proceedings of the 2001
+Conference on Applications, Technologies, Architectures,
+and Protocols for Computer Communications, pages
+149–160. ACM Press, 2001.
+\bibitem{fuse}
+FUSE: Filesystem in Userspace. http://fuse.sourceforge.net/ 
+\bibitem{cfs}
+F. Dabek, M. F. Kaashoek, D. Karger, R. Morris, and I. Stoica. Wide-area
+cooperative storage with CFS. In SOSP, Oct. 2001.
+\bibitem{oceanstore}
+J. Kubiatowicz, D. Bindel, Y. Chen, S. Czerwinski, P. Eaton, D. Geels, R. Gummadi, S. Rhea,
+H. Weatherspoon, W. Weimer, C. Wells, and B. Zhao. Oceanstore: An architecture for globalscale persistent store. In Proc. ASPLOS’2000, Cambridge, MA, November 2000.
+\bibitem{ivy}
+A. Muthitacharoen, R. Morris, T. Gil, and B. Chen. 
+Ivy: A read/write peer-to-peer file system. 
+In Proc. of OSDI, 2002.
+\bibitem{towards}
+J. Quintard. Towards a worldwide storage infrastructure.
+PhD thesis, University of Cambridge, September 2010.
+\bibitem{dhash}
+M. Leslie.
+Reliable Data Storage in Distributed Hash Tables. Oxford University. 2005.
+\bibitem{versioning}
+D. K. Gifford. Weighted Voting for Replicated 
+Data. In Proceedings of the Seventh ACM 
+Symposium on Operating Systems Principles, 
+pages 159-159, December 1979
+\bibitem{twofishprod}
+Bruce Schneier. Products that use Twofish. http://www.schneier.com/twofish-products.html
+\bibitem{andrew}
+J. H. Howard. An Overview of the Andrew File System.
+In Proceedings of the Winter USENIX Technical Confer-
+ence, February 1988.
+\bibitem{kernelb}
+A. Traeger, N. Joukov, C. P. Wright, and E. Zadok. A
+Nine Year Study of File System and Storage Benchmarking. ACM Transactions on Storage (TOS), 4(2):25–80,
+May 2008.
+\bibitem{pastis}
+Busca, J. M., Picconi, F., \& Sens, P. (2005). Pastis: A highly-scalable multi-user peer-to-peer file system. Euro-Par 2005 Parallel Processing, 644-644.
+\bibitem{gpl}
+GNU General Public License. http://www.gnu.org/licenses/gpl.html
+\bibitem{github}
+GitHub. https://github.com/ 
+\bibitem{chordalt}
+Alternatives to the Chord Protocol. Boston University. http://nislab.bu.edu/sc546/sc441Spring2003/CallaMiraniCHORD/alternatives.html
+\end{thebibliography}
+\end{document}
