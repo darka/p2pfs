@@ -2,28 +2,18 @@ import netaddr
 import os
 import copy
 
-default_keys = [
-  "lxc.utsname",
-  "lxc.network.type",
-  "lxc.network.flags", 
-  "lxc.network.link", 
-  "lxc.network.hwaddr",
-  "lxc.network.ipv4",
-  "lxc.network.name"
-]
-
-default_values = [
-  "vps0" ,
-  "veth",
-  "up", 
-  "br0", 
-  "00:30:6E:08:EC:80",
-  "192.168.1.10",
-  "eth0"
+default_config = [
+  ("lxc.utsname",        "vps0"),
+  ("lxc.network.type",   "veth"),
+  ("lxc.network.flags",  "up"), 
+  ("lxc.network.link",   "br0"), 
+  ("lxc.network.hwaddr", "00:30:6E:08:EC:80"),
+  ("lxc.network.ipv4",   "192.168.1.10"),
+  ("lxc.network.name",   "eth0")
 ]
 
 default_options = {}
-for key, value in zip(default_keys, default_values):
+for key, value in default_config:
 	default_options[key] = value
 
 starting_address = netaddr.IPAddress("192.168.1.10")
@@ -31,7 +21,7 @@ directory = "lxc_config"
 total = 10
 
 def write_config(f, options):
-	for key in default_keys:
+	for key in (pair[0] for pair in default_config):
 		f.write("{} = {}\n".format(key, options[key]))
 
 def main():
@@ -49,9 +39,5 @@ def main():
 		write_config(f, options)
 		f.close()
 			
-			
-
-		
-
 if __name__ == "__main__":
 	main()

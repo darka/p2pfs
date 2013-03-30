@@ -15,8 +15,26 @@
 \maketitle
 
 \begin{abstract}
+%TODO: rewrite this
 This proposal describes the design of a Distributed Peer-to-peer File System aiming for simplicity and efficiency. A brief overview of projects with similar goals is given, along with their drawbacks and differences from the proposed implementation. A description of the most important problems, such as replication, versioning, and security that the distributed file system faces is provided, as well as how they will be solved. The project will target real world deployments, and will be evaluated using commonly accepted benchmarks, such as the Andrew benchmark. The prototype implementation will be published under an open source license.
 \end{abstract}
+
+% Project & Goals
+% Develop a P2P distributed file system 
+%
+% DHT - Chord
+%
+% Approach
+% Unaddressed problems
+% File persistence (has this been addressed in any way?)
+% Security (encrypted file contents)
+% Reading files larger than there currently is space available
+%
+% Cannot use planet lab, emu lab, because university does not give me access
+% proposing a testing system, that allows running multiple nodes (cite paper about bit torrent and lxc)
+% results of running simple chord in such a networked system 
+%
+% Workplan (detailed, exact milestones)
 
 \section{Purpose}
 The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. 
@@ -58,14 +76,47 @@ So far no implementations are being used outside the research community by the w
 
 \section{Methods}
 
+And essentially no fully decentralised file system has been adopted by the wider public. 
 To build such a file system, a back-end and a front-end will be designed.
 
+The base of the back-end of such a system is a DHT (distributed hash table), capable of executing three commands among all nodes:
+\begin{itemize}
+\item insert(key, value)
+\item retrieve(key)
+\item delete(key)
+\end{itemize}
+
+The novelty of the system lies in being able to keep more files in the cloud, than there currently is space available on your physical hard drive. 
+
+This will be done by maintaining a list of the most frequently or recently used files that will be cached in the system, while leaving the rest of the space (that was allocated to the file system by the user) for keeping reconds of other people's files that they stored in the cloud.
+
+This should be possible, as the encouraged behaviour for a user of such a file system, is to allocate a large amount of hard drive space to it, but it is likely that the user will only use a small amount of that space for his or her own files (which are then going to be uploaded to this 'cloud' anyway).
+
+Describe how quorums are stored in the system,
+
+How we go from FUSE to executing all of the above (check FUSE API)
+
+Protocol needs to be scalable (as there might be a lot of nodes connected, how to address that?), also needs to support churn, as network nodes will move in and out of the network.
+
+Steps to editing a file:
+\begin{enumerate}
+\item user access a file on his/her file system
+\item retrieve(key) is called
+\item user edit and saves the file
+\item insert(key, value)
+\item update is propagated according to quorum rules
+\end{enumerate}
+
+Also need to address: security, persistence (how exactly am I adding sth new to the area)
 \begin{itemize}
 \item The back-end will be based on a DHT (Distributed Hash Table). 
 \item The front-end of the file system will be based on FUSE (Filesystem in Userspace) \cite{fuse}.
 \end{itemize}
 The implementation will target a real world workload. The ns-3 \cite{ns3} simulator will be used to test the implementation.
 
+\section{Current Progress}
+
+Work done so far consisted of a prototype implementation of the Chord protocol on top of the Python Twisted networking library, and a setting up of a testing infrastructure, capable of determining whether 
 \subsection{Network}
 The lookup service for the DHT will be provided by the Chord peer-to-peer overlay network. Main reasons to choose Chord over other P2P services are its simplicity, the fact that it is well-studied already, and its provable correctness and performance will allow for producing a more formally grounded result \cite{chord}. %TODO: cite something (those slides?)
 
