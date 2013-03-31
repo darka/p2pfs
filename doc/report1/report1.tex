@@ -15,8 +15,19 @@
 \maketitle
 
 \begin{abstract}
-%TODO: rewrite this
-This proposal describes the design of a Distributed Peer-to-peer File System aiming for simplicity and efficiency. A brief overview of projects with similar goals is given, along with their drawbacks and differences from the proposed implementation. A description of the most important problems, such as replication, versioning, and security that the distributed file system faces is provided, as well as how they will be solved. The project will target real world deployments, and will be evaluated using commonly accepted benchmarks, such as the Andrew benchmark. The prototype implementation will be published under an open source license.
+%TODO: rewrite this but you get the idea
+Although the popularity of services such as DropBox and Google Drive makes it seem
+that there exists a need for such services, currently no decentralised and distributed
+file system has been adopted by the wider public for such usage. The development of such
+a file system requires solving lots of problems, such as file persistence, security, 
+good behaviour on network failure etc. Testing such an implementation is also not easy,
+as simulating real network behaviour is hard. This project attempts to implement such a system,
+and to provide a comparison to other systems with similar goals, by using common
+file system benchmarks. 
+
+So far a prototype of the file system backend has been implemented, and a testing environment
+using LXC has been setup and evaluated whether it is suitable for testing a system like this.
+
 \end{abstract}
 
 % Project & Goals
