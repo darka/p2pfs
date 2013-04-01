@@ -1,4 +1,4 @@
-\documentclass[8pt,a4paper]{article}
+\documentclass[a4paper, 11pt]{article}
 %\documentclass[10pt,a4paper,twocolumn]{article}
 \usepackage{amssymb,amsmath}
 \usepackage{graphicx}
@@ -16,19 +16,37 @@
 
 \begin{abstract}
 %TODO: rewrite this but you get the idea
-Although the popularity of services such as DropBox and Google Drive makes it seem
-that there exists a need for such services, currently no decentralised and distributed
-file system has been adopted by the wider public for such usage. The development of such
-a file system requires solving lots of problems, such as file persistence, security, 
-good behaviour on network failure etc. Testing such an implementation is also not easy,
-as simulating real network behaviour is hard. This project attempts to implement such a system,
+Although the popularity of services similar to DropBox and Google Drive proves that 
+users find such cloud storage file hosting services useful,
+currently no decentralised and distributed file system exists that could provide
+a service of similar quality but without dependence on any single vendor.
+%a file system requires solving lots of problems, such as file persistence, security, 
+%good behaviour on network failure etc. Testing such an implementation is also not easy,
+%as simulating real network behaviour is hard. 
+This project attempts to implement such a system,
 and to provide a comparison to other systems with similar goals, by using common
 file system benchmarks. 
 
-So far a prototype of the file system backend has been implemented, and a testing environment
-using LXC has been setup and evaluated whether it is suitable for testing a system like this.
+A prototype of the file system backend has been implemented, and a testing environment
+using LXC has been setup and evaluated to determine its suitability for testing the 
+file system service.
 
 \end{abstract}
+
+\section{Introduction}
+
+A distributed file system capable of providing a high quality service must solve a very large set 
+of problems:
+
+%TODO: describe some background for each of them?
+\begin{itemize}
+\item Security
+\item Scalability
+\item Replication
+\item Version control
+\item Access control
+\item Evaluating such a system
+\end{itemize}
 
 % Project & Goals
 % Develop a P2P distributed file system 
@@ -47,6 +65,64 @@ using LXC has been setup and evaluated whether it is suitable for testing a syst
 %
 % Workplan (detailed, exact milestones)
 
+\section{Project Overview}
+
+In order to implement such a system, a test-bed environment must be setup
+my project began with building a prototype 
+DHT implementation based on the Chord protocol, and with an attempt to check if
+the proposed evaluation system could be used for testing.
+
+The base of such a system is the DHT. Every file object stored in the system will be described by its path (key),
+and its contents (value). Thus, the DHT must support the following methods: 
+
+
+The lowest level of the distributed file system is built on a key-based routing protocol, Chord. The purpose of this level is, given a key and a message, to route the message to the node with an indentifier closest to the key. In our case, the key is the SHA-1 hash of the file path, and the identifier is the SHA-1 hash of the IP address of the node. The distance between the node's identifier and the key of the message is determined by taking the difference between them. (talk about chord's routing algorithm like in CFS paper)
+
+(how does chord scale?)
+Each node in the network is connected to a set of other nodes (its neighbours) by a number of links (the routing table).
+
+On top of this lowest level, sits the DHT (distributed hash table). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The DHT used will be based on CFS DHash.
+
+In order to be suitable for usage in a distributed file system, The DHT must provide an interface supporting the following operations:
+
+insert(key, value)
+
+The DHT will use Chord to determine which node the key value pair should be stored on. To ensure file system persistence, replicas of the value will be stored on k number of nodes coming after the successor of the picked node. It should be noted that the number k has not yet been determined. 
+
+retrieve(key)
+
+Again, the DHT will use Chord to determine the node carrying the value given by the key. As k number of nodes following that node store a replica of the requested value, the latency to each of them will be measured, and the fasted node will be picked for downloading.
+
+delete(key)
+
+Deletion will be implemented simply by deleting the file path from the user's file record (which will be discussed further). To an extent, this also guards against malicious injections of large amounts of data [CFS citation], as such data will be gradually deleted.
+
+TODO: address caching
+
+As the file system may be deployed on storage drives of varying size,  including ones that provide less space than some of the files stored on the world-wide file system, the DHT will divide the files into smaller blocks suitable for storage. 
+
+To connect to the system, a user must obtain an IP address of a node already in the system. The node would 
+
+
+
+\begin{itemize}
+\item insert(key, value)
+\item retrieve(key)
+\item delete(key)
+\end{itemize}
+
+% describe what happens when a node joins the network
+% when a node changes a file in the network
+% see what happens
+
+% why is chord better than pastry? - routing performance is the same, implementation is simpler
+
+ As such, each user maintains a file list, of all files in
+the system that belong to the user.
+The current approach is to disregard all access control, and solve the issue later.
+
+
+% could copying be implemented in a clever way? how do other file systems do it?
 \section{Purpose}
 The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. 
 
@@ -91,12 +167,6 @@ And essentially no fully decentralised file system has been adopted by the wider
 To build such a file system, a back-end and a front-end will be designed.
 
 The base of the back-end of such a system is a DHT (distributed hash table), capable of executing three commands among all nodes:
-\begin{itemize}
-\item insert(key, value)
-\item retrieve(key)
-\item delete(key)
-\end{itemize}
-
 The novelty of the system lies in being able to keep more files in the cloud, than there currently is space available on your physical hard drive. 
 
 This will be done by maintaining a list of the most frequently or recently used files that will be cached in the system, while leaving the rest of the space (that was allocated to the file system by the user) for keeping reconds of other people's files that they stored in the cloud.
