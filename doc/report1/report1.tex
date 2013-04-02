@@ -148,6 +148,8 @@ To connect to the system, a user must first obtain an IP address of a node alrea
 
 \section{Evaluation}
 
+\subsection{Environment}
+
 The evaluation testbed and methods were chosen after a careful assessment of a number of different procedures, under the criteria that:
 \begin{enumerate}
 \item no significant differences would be required between the implementation used in the simulation, and the implementation used in the real world;
@@ -155,37 +157,54 @@ The evaluation testbed and methods were chosen after a careful assessment of a n
 \item there would be a good basis to believe that the obtained results are applicable to the real world.
 \end{enumerate}
 
-\subsection{ns-3}
+\subsubsection{ns-3}
 The first method considered, was to target ns-3 for the test bed environment, as it has previously been used for this purpose when testing the Infinit filesystem. This method was attempted first, but its main drawback is that the implementation used in simulation would differ too much from the implementation targeting the real world. %This was the case for the Infinit project, as the implementation used in the simulated environment produced  
 
 % TODO: explain how ns3 could be used to do this
 
-\subsection{LXC Containers}
+\subsubsection{LXC Containers}
 
-The filesystem will be tested using a local emulation testbed. The testbed uses Linux Containers (LXC), a high-performance operating system level virtualization solution, that allows sharing the resources of the host machine among many isolated instances. LXC containers use the Linux kernel cgroups feature to segregate processes, isolating them from other processes, and providing them with their own network space. FUSE-based filesystems can be mounted on LXC containers, but the containers can also share certain directories with the host machine.
+To ensure that all criteria are met, it was decided that the filesystem will be tested using a local emulation testbed. The testbed uses Linux Containers (LXC), a high-performance operating system level virtualization solution, that allows sharing the resources of the host machine among many isolated instances. LXC containers use the Linux kernel cgroups feature to segregate processes, isolating them from other processes, and providing them with their own network space. FUSE-based filesystems can be mounted on LXC containers, but the containers can also share certain directories with the host machine.
 
-Such a testbed has previously been used for analyzing the performance of a P2P swarm \cite{p2plxc} using the hrktorrent BitTorrent client, and bttrack BitTorrent tracker. Each peer was running in its own container, on top of the hardware node, sharing parts of the system with the host, and very little decrease in download speed was noted when the number of peers was gradually increased from 20 to 100. This is surprising, as a very low-end machine was used for executing the tests (Intel(R) Core(TM)2 Duo CPU T7500 @ 2.20GHz, 1.5 GB of RAM), indicating that the LXC containers have a very low overhead, and running a large amount of nodes is possible.
+Such a testbed has previously been used for analyzing the performance of a P2P swarm \cite{p2plxc} using the hrktorrent BitTorrent client, and bttrack BitTorrent tracker, with a conclusion that LXC is suitable for testing P2P network applications in real world scenarios. Each peer was running in its own container, on top of the hardware node, sharing parts of the system with the host, and very little decrease in download speed was noted when the number of peers was gradually increased from 20 to 100. This is surprising, as a very low-end machine was used for executing the tests (Intel(R) Core(TM)2 Duo CPU T7500 @ 2.20GHz, 1.5 GB of RAM), indicating that the LXC containers have a very low overhead, and running a large amount of nodes is possible.
 
-Nevertheless, even a powerful machine may not be able to handle a very large number of nodes running the P2P filesystem. As LXC containers have their own network device configuration, it is possible to expose them to the wider network. The plan is then to have a number of machines running LXC containers, each contributing a different amount of peers to the filesystem network, depending on the machine's resources.
+Nevertheless, some of the benchmarks will require up to 10000 nodes at a time. Even a powerful machine may not be able to handle such a large number of nodes running the P2P filesystem. As every LXC container has its own network device configuration, it is possible to expose it to the wider network. The plan is then to have a number of machines running LXC containers, each contributing a different amount of peers to the filesystem network, depending on the machine's resources.
 
+\subsection{Benchmarks}
 
+\subsubsection{Andrew benchmark}
+
+The standard method to evaluate performance in the world of distributed file systems is the Andrew benchmark \ref{andrewscale}, consisting of:
+\begin{enumerate}
+\item creating a directory hierarchy;
+\item copying files into the created directories;
+\item walking the whole directory hierarchy and reading the attributes of files;
+\item reading the contents of files;
+\item compiling the files into a program.
+\end{enumerate}
 % topologies?
+The filesystem will be accessible using FUSE, so to execute the benchmark, the OpenSSL-1.0.0 library source code will be placed on the filesystem. This is a large-scale open source project, consisting of approximately 1100 source files, and around 700 object files are generated during compilation. Using this OpenSSL library will allow for direct comparison with Infinit \ref{towards}.
+
+In order to produce realistic results that could be compared to other file systems, a network composed of 16 nodes (the standard amount in distributed file system evaluations) located in the same LAN will be setup, and the Andrew benchmark will then be executed on the file system. The time required to execute each of the 5 steps of the benchmark will be noted, and compared against Infinit, Pastis, Ivy and others.
+
+The benchmark will then be executed with a gradually increasing amount of nodes: 50, 100, 500, 1000, 5000, 10000. The times obtained will again be compared against other filesystems.
 
 \section{Current Progress}
 
 Most work done so far has been on preparing a suitable testing environment for testing the filesystem.
 
-The first attempt consisted of implementing a subset of Chord (without support for the routing tables), and a simplistic DHT layer on top of it, using ns-3. As ns-3 has support for Python bindings, it seemed as the language of choice, but after taking further steps, the Python binding documentation turned out to be very inadequate, and some important parts of the API, such as callbacks, turned out not to be properly supported in Python.  
+The first attempt consisted of implementing a subset of Chord (without support for the routing tables), and a simplistic DHT layer on top of it, using ns-3. As ns-3 has support for Python bindings, it seemed as the language of choice for its ease of use compared to C++, but after taking further steps, the Python binding documentation turned out to be very incomplete, and some important parts of the API, such as callbacks, turned out not to be properly supported in Python.  
 
-This instigated a switch to using C++ for development, and using the proper C++ API of ns-3. However, as the development of the Chord protocol proceeded, it became clear that, although the parts of the ns-3 API relevant to this project are similar to the Unix sockets API (which is in fact one of the main selling points of ns-3), there is still too much of a difference between them.
+This instigated a switch to using C++ for development, using the proper C++ API of ns-3. However, as the development of the Chord protocol progressed, it became clear that, although the parts of the ns-3 API relevant to this project are similar to the Unix sockets API (which is in fact one of the main selling points of ns-3), they are not entirely alike, leading to fairly large differences between the prototype used for simulation, and the prototype that would be used in realistic environments.
 
-However although ns-3 API has its own API, it was clear that such an implementation would be too different from the one targeting the real world.
+This led to a search for a different testing environment, concluding with the choice of LXC \ref{p2plxc}. As no user-friendly tool exists to operate LXC containers, a number of shell and Python scripts were written for starting and configuring a large amount of nodes. 
 
+To test the emulation testbed and determine how many nodes a VirtualBox virtual machine running Ubuntu Linux could manage at once, an experiment was setup, where each of the nodes 
 \begin{figure}
 \begin{center}
   \includegraphics[width=11cm]{cpu_nodes.png}
 \end{center}
-\caption{Control flow states}
+\caption{CPU usage with increasing number of nodes}
 \label{flow}
 \end{figure}  
 
@@ -195,7 +214,11 @@ However although ns-3 API has its own API, it was clear that such an implementat
 The current goal of the project is to get the filesystem to a state where the ANDREW benchmark can be executed on it. At that point it will be possible to compare the speed of the filesystem to NFS, and this will make it clearer as to how well it scales when nodes are added/removed, and what its most significant short-comings are, in regards to other similar filesystems.
 
 With these taken into account, the modularity of the system will allow 
-\begin{figure}[t]
+
+\subsection{Work Plan}
+
+See figure~\ref{milestones}.
+\begin{figure}
 \begin{tabular}{ | p{0.65\textwidth} | p{0.35\textwidth} | }
 \hline
 \textbf{Task} & \textbf{Dates} \\
@@ -235,11 +258,10 @@ Write dissertation & 1st February, 2013 - 3rd April 2013 \\
 Create presentation & 4th April 2013 - 30th April 2013 \\
 \hline
 \end{tabular}
-\caption{Estimated dates for completion of project milestones.}
+\caption{Project timetable}
 \label{milestones}
 \end{figure}
 
-\section{Work Plan}
 
 
 %SHIT LEFT TO COVER:
@@ -417,6 +439,9 @@ GNU General Public License. http://www.gnu.org/licenses/gpl.html
 GitHub. https://github.com/ 
 \bibitem{chordalt}
 Alternatives to the Chord Protocol. Boston University. http://nislab.bu.edu/sc546/sc441Spring2003/CallaMiraniCHORD/alternatives.html
+\bibitem{andrewscale}
+J. Howard, M. Kazar, S. Menees, D. Nichols, M. Satyanarayanan, R. Sidebotham, and M. West. Scale and performance in a distributed file system. ACM Transactions
+on Computer Systems, 6(1), February 1988.
 \bibitem{p2plxc}
 M. Bardac, R. Deaconescu, and A. M. Florea, ``Scaling Peer-to-Peer
 Testing using Linux Containers'', in Proceedings of the 9th RoEduNet
