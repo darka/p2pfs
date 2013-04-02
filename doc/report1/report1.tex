@@ -8,7 +8,7 @@
 
 \title{Distributed Peer-to-peer File System}  
 \author{Darius Scerbavicius} 
-\date{25th January 2013}
+\date{4th April 2013}
 
 \begin{document}
 
@@ -41,8 +41,12 @@ Furthermore, the proposed project has the potential to offer much more free spac
 During the last 15 years, a lot of promising technology has been developed that can eliminate the providing vendors while offering the same high quality service. 
 Systems based on a Distributed Hash Table (DHT) have allowed lookup services to be implemented in a completely decentralised network, allowing any participating nodes to efficiently retrieve data. Implementations of DHTs are being successfully used in various peer-to-peer Internet services, such as BitTorrent and Coral Content Distribution Network \cite{coral}.
 
-Such technology is just as well applicable to distributed file systems. Attempts to implement such systems have been made, however all of them are catered to specific workflows, leading to a lot of complexity, which this implementation hopes to avoid.
+Such technology is just as well applicable to distributed file systems. Attempts to implement such systems have been made, with the most prominent names being   CFS \cite{cfs}, Pastis \cite{pastis}, OceanStore \cite{oceanstore}, Ivy \cite{ivy}, Infinit \cite{towards}. So far no implementations are being used outside the research community by the wider public, and no large-scale high quality open source projects capable of offering such a service have been established.
 
+The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. 
+%
+%The project consists of developing a back-end based on a peer-to-peer distributed hash table algorithm, and a front-end, which would allow users to place and retrieve files from the file system.
+%
 %\section{Problems}
 
 %A distributed file system capable of providing a high quality service must solve a very large set 
@@ -87,9 +91,15 @@ The following section will present a complete view of the project, using a botto
 
 The lowest level of the distributed file system is built on a key-based routing protocol, Chord. The purpose of this level is, given a key and a message, to route the message to the node with an identifier closest to the key. In our case, the key is the SHA-1 hash of the file path, and the identifier is the SHA-1 hash of the IP address of the node. The distance between the node's identifier and the key of the message is determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
 
+Each node in the network is connected to a set of other nodes (its neighbours) by a number of links (the routing table).
+
+Chord can be imagined as a network of nodes connected in a ring, where each node knows its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. The value of a key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
+
+Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer file system \cite{chord}.
+
+
 % what are the main reasons to use chord instead of other KBRs?
 
-Each node in the network is connected to a set of other nodes (its neighbours) by a number of links (the routing table).
 %(how does chord scale?)
 
 \subsection{Distributed Hash Table}
@@ -208,9 +218,6 @@ With these taken into account, the modularity of the system will allow
 %
 %% could copying be implemented in a clever way? how do other file systems do it?
 %\section{Purpose}
-%The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. 
-%
-%The project consists of developing a back-end based on a peer-to-peer distributed hash table algorithm, and a front-end, which would allow users to place and retrieve files from the file system.
 %
 %The project will strive for:
 %\begin{enumerate}
@@ -224,20 +231,7 @@ With these taken into account, the modularity of the system will allow
 %A list of decentralised peer-to-peer file systems and their drawbacks follows:
 %
 %\begin{description}
-%  \item[CFS] \hfill \\ 
-%  CFS is a decentralised peer-to-peer storage system \cite{cfs}. It is robust and efficient -- it scales well and delivers data as fast as FTP. However, it requires an administrator to configure each of the servers that run CFS, and only provides a read-only interface to clients. This prevents CFS from being used as a DropBox replacement. 
-%  \item[Pastis] \hfill \\
-%  Pastis is a distributed file system based on the Pastry lookup protocol \cite{pastis}. The protocol is substantially more complicated than Chord \cite{chord}, and unlike Chord has latency problems when it comes to joining nodes \cite{chordalt}.
-%  \item[OceanStore] \hfill \\
-%  OceanStore \cite{oceanstore} is not completely decentralised. Its architecture is partitioned into two tiers, where some nodes are deemed highly available, and others are considered more transient. This kind of partitioning leads to further complexity in the implementation, and makes it difficult to scale to large networks \cite{towards}.
-%  \item[Ivy] \hfill \\
-%  Ivy is another distributed file system \cite{ivy}, built with the intent of allowing different users to share data amongst each other (rather than use it as a personal storage container), leading to a much more complicated approach, involving the maintenance of transaction logs for each participant. Unlike Ivy, the proposed project emphasises simplicity and hopes to avoid such complexity.
-%  \item[Infinit] \hfill \\ 
-%  Infinit seems to be the most promising of current peer-to-peer storage systems. However, its main focus is the design of an access control and administration scheme for peer-to-peer file systems \cite{towards}. The described prototype is also high in complexity, and no actual implementation is currently available.
-%\end{description}
-%
-%So far no implementations are being used outside the research community by the wider public, and no large-scale high quality open source projects capable of offering such a service have been established.
-%
+
 %\section{Methods}
 %
 %And essentially no fully decentralised file system has been adopted by the wider public. 
@@ -276,12 +270,6 @@ With these taken into account, the modularity of the system will allow
 %
 %Work done so far consisted of a prototype implementation of the Chord protocol on top of the Python Twisted networking library, and a setting up of a testing infrastructure, capable of determining whether 
 %\subsection{Network}
-%The lookup service for the DHT will be provided by the Chord peer-to-peer overlay network. Main reasons to choose Chord over other P2P services are its simplicity, the fact that it is well-studied already, and its provable correctness and performance will allow for producing a more formally grounded result \cite{chord}. %TODO: cite something (those slides?)
-%
-%Chord can be imagined as a network of nodes connected in a ring, where each node knows its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. The value of a key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
-%
-%Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer file system \cite{chord}.
-%
 %\subsection{Replication}
 %To enable reliable file storage, the peer-to-peer network must have a system of file replication. The most basic implementation is to store the exact same replica of the file at a fixed number of successor nodes. This is in fact the suggested method for higher level applications by Chord authors \cite{chord}.
 %
