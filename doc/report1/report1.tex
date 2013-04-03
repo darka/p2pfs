@@ -189,9 +189,9 @@ This led to a search for a different testing environment, concluding with the ch
 
 To test the emulation testbed and determine how many nodes a VirtualBox virtual machine running Ubuntu Linux on an Intel(R) Core(TM) i3 CPU M370 @ 2.40GHz, 2 GB of RAM computer could manage at once, an experiment was setup. 
 A Python application capable of sending and receiving files was implemented using the Twisted networking library.
-Using this application, each pair of the nodes exchanged 30 MB files over the network, and CPU usage was monitored during the exchange, while the number of nodes was gradually increased. The results are visible in figure~\ref{cpu_usage}. There is a fairly linear increase in CPU usage, as the number of nodes is increased, and the machine is able to support up to 180 LXC containers running at once.
+Using this application, each pair of the nodes exchanged 30 MB files over the network, and CPU usage was monitored during the exchange, while the number of nodes was gradually increased. The results are visible in figure~\ref{cpu_usage}. Each node was running an instance of a Python process, requiring on average 0.3-0.7\% CPU. As the number of nodes was increased, there was a fairly linear increase in CPU usage, with 2 nodes needing 1.2\% CPU, 10 nodes requiring 6\% CPU, 50 nodes requiring 32\% CPU, 100 nodes taking up $46\%$ CPU and 180 nodes taking up 87\% CPU. Thus the machine is able to support up to 180 LXC containers running at once, as increasing the number of working nodes at this point could start to interfere with other processes running on the system (such as the desktop environment).
 
-Considering the experiment was executed on a virtual machine, this is a fairly large number of nodes.
+Considering the experiment was executed on a virtual machine, this is a fairly large number of nodes, and a non-virtualized instance of Linux is expected to be able to run an even larger amount of nodes in parallel.
 
 \begin{figure}
 \begin{center}
