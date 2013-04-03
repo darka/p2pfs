@@ -24,12 +24,11 @@ a service of similar quality but without dependence on any single vendor.
 %good behaviour on network failure etc. Testing such an implementation is also not easy,
 %as simulating real network behaviour is hard. 
 This project attempts to implement such a system,
-and to provide a comparison to other systems with similar goals, by using common
+and to provide a comparison with other systems with similar goals, by using common
 filesystem benchmarks. 
 
-A prototype of the filesystem backend has been implemented, and a testing environment
-using LXC has been setup and evaluated to determine its suitability for testing the 
-filesystem service.
+A testing environment using LXC has been setup and evaluated to determine its suitability for testing the 
+filesystem service. A prototype of the filesystem is currently being worked on.
 
 \end{abstract}
 
@@ -44,6 +43,7 @@ Systems based on a Distributed Hash Table (DHT) have allowed lookup services to 
 Such technology is just as well applicable to distributed filesystems. Attempts to implement such systems have been made, with the most prominent names being   CFS \cite{cfs}, Pastis \cite{pastis}, OceanStore \cite{oceanstore}, Ivy \cite{ivy}, Infinit \cite{towards}. So far no implementations are being used outside the research community by the wider public, and no large-scale high quality open source projects capable of offering such a service have been established.
 
 The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. 
+
 %
 %The project consists of developing a back-end based on a peer-to-peer distributed hash table algorithm, and a front-end, which would allow users to place and retrieve files from the filesystem.
 %
@@ -81,7 +81,9 @@ The purpose of this MInf dissertation is to build a Distributed Peer-to-peer Fil
 
 \section{Project Overview}
 
-The following section will present a complete view of the project, using a bottom-up approach, starting from the lowest protocol level and ending with the design of the frontend. 
+Currently there is clear consensus in the literature on what distributed file system components lead to achieving the best possible performance. In fact the most common benchmark used to test such file systems, the Andrew benchmark, has itself received a lot of criticism due to some reasons (what?). Designing a superior benchmark is however out of scope of this project, and would in fact prevent any attempt to compare this file system with other file systems.
+
+The following section will present a complete overview of the project, starting from the lowest protocol level and ending with the design of the frontend. 
 
 \subsection{Key-Based Routing}
 %Ivy’s lack of support for automatically adding new users
@@ -89,11 +91,9 @@ The following section will present a complete view of the project, using a botto
 %
 %pastis
 
-The lowest level of the distributed filesystem is built on a key-based routing protocol, Chord. The purpose of this level is, given a key and a message, to route the message to the node with an identifier closest to the key. In our case, the key is the SHA-1 hash of the file path, and the identifier is the SHA-1 hash of the IP address of the node. The distance between the node's identifier and the key of the message is determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
+The lowest level of the distributed filesystem will be built on a key-based routing protocol, Chord. The purpose of this level is, given a key and a message, to route the message to the node with an identifier closest to the key. In our case, the key is the SHA-1 hash of the file path, and the identifier is the SHA-1 hash of the IP address of the node. The distance between the node's identifier and the key of the message is determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
 
-Each node in the network is connected to a set of other nodes (its neighbours) by a number of links (the routing table).
-
-Chord can be imagined as a network of nodes connected in a ring, where each node knows its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. The value of a key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
+Chord can be imagined as a network of nodes connected in a ring, where each node is aware of its neighbours: its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. The value of a key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
 
 Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer filesystem \cite{chord}.
 
@@ -104,7 +104,7 @@ Nodes maintain a routing table that accelerates lookups. In a system of $N$ node
 
 \subsection{Distributed Hash Table}
 
-On top of this lowest level, sits the DHT (distributed hash table). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The DHT used for this distributed filesystem will be based on CFS DHash.
+On top of this lowest level, sits the DHT (distributed hash table). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The DHT used for this distributed filesystem will be based on CFS DHash (why?).
 % again, why CFS DHash?
 
 In order to be suitable for usage in a distributed filesystem, The DHT must provide an interface supporting the following operations:
@@ -112,7 +112,7 @@ In order to be suitable for usage in a distributed filesystem, The DHT must prov
 \begin{itemize}
 \item insert(key, value)
 
-The DHT will use Chord to determine which node the key value pair should be stored on. To ensure filesystem persistence, replicas of the value will be stored on k number of nodes coming after the successor of the picked node. It should be noted that the number k has not yet been determined. 
+The DHT will use Chord to determine which node the key value pair should be stored on. To ensure filesystem persistence, replicas of the value will be stored on k number of nodes coming after the successor of the picked node. It should be noted that the number k has not yet been determined, and a number of experiments will be executed to find a suitable value.
 
 \item retrieve(key)
 
@@ -122,29 +122,44 @@ Again, the DHT will use Chord to determine the node carrying the value given by 
 
 Deletion will be implemented simply by deleting the file path from the user's file record (which will be discussed further). To an extent, this also guards against malicious injections of large amounts of data \cite{cfs}, as such data will be gradually deleted.
 \end{itemize}
-TODO: address caching
+%TODO: address caching
 
 As the filesystem may be deployed on storage drives of varying size, including ones that provide less space than some of the files stored on the world-wide filesystem, the DHT will divide the files into smaller blocks suitable for storage. 
 
 %TODO: describe how CFS does this
 
-\section{Security}
+\subsection{Versioning}
+Due to the way replication works, not all copies of the file currently in the network are going to be up-to-date. To ensure that the user always receives the most recent copy, when performing a lookup, a weighted voting scheme is going to be introduced. The replicas will be assigned a version number, and each replica of a file will be assigned a certain number of votes. Whenever the file is accessed, or written to, a certain number of $r$ votes to read a file, and a certain number of $w$ votes to write a file will be collected, such that $r + w$ is more than the total number of votes assigned to file. This guarantees that any lookup will always retrieve the most recent version of the file \cite{versioning}.
 
-The prototype implementation will not have a sophisticated access control system. A simple mechanism based on public key encryption and digital signatures will be provided instead. 
+\subsection{Security}
 
-Each user of the filesystem must have generated a private key, which is used to encrypt all files, and a public key.
+The prototype implementation will not have a sophisticated access control system. A simple mechanism based on a hybrid cryptosystem approach will be provided instead.
 
-% TODO: signatures
+% why not do sth complicated like Infinit, need a good argument
 
-\section{File System Structure}
+Each user of the filesystem will have to generate an AES key for encrypting own data, as well as an RSA key pair for authentication.  
+Every user will have a copy of the public keys of all users whose files are stored on this specific user's computer.
 
-The list of files stored on the filesystem by the user, will be governed by an index. As in CFS, this index will be stored under the user's public key. The current plan is to maintain the index as a plain text file, although this is obviously inadequate for filesystems containing large numbers of files. A more sophisticated approach, involving a database, will be presented later. 
+The asymmetric key encryption mechanism will ensure that integrity is maintained. If a node received a request to update a file currently stored on the node's machine, the node would use the public key associated with that file to construct a challenge, and send it to the requesting node, awaiting a response.  
+If the requesting node provided the correct response, the update would be executed. Same applies to download requests.
+
+The symmetric key mechanism will ensure that the user of the current node cannot read the contents of files that belong to other users of the system, as the current user will only posses own AES key.
+
+This hybrid approach using both symmetric and asymmetric algorithms is necessary to ensure good performance, as asymmetric key algorithms are much more computationally expensive than symmetric key algorithms.
+
+
+\section{Frontend}
+
+\subsection{Index}
+The list of files stored on the filesystem by the user, will be governed by an index. As in CFS, this index will be stored under the user's RSA public key in the distributed hash table. The current plan is to maintain the index as a plain text file, although this is obviously inadequate for filesystems containing large numbers of files. A more sophisticated approach, involving a database, will be presented later. 
 
 Whenever a user creates a new file, a record of the file will be added to the index, and likewise the file's record will be deleted when the user deletes that particular file.
 
 To connect to the system, a user must first obtain an IP address of a node already in the system.
 
-%The filesystem will be implemented in a modular way. %TODO: what do you mean
+\subsection{FUSE}
+The front-end of the filesystem will be based on FUSE, which allows implementing a filesystem as a user space program \cite{fuse}. This would bypass the operating system kernel, leading to greater portability, as FUSE is available for Linux, FreeBSD, NetBSD, OpenSolaris and Mac OS X. FUSE is suitable for long-term projects, as it is well-maintained, and is an official component of the Linux kernel.
+
 
 \section{Evaluation}
 
@@ -158,7 +173,7 @@ The evaluation testbed and methods were chosen after a careful assessment of a n
 \end{enumerate}
 
 \subsubsection{ns-3}
-The first method considered, was to target ns-3 for the test bed environment, as it has previously been used for this purpose when testing the Infinit filesystem. This method was attempted first, but its main drawback is that the implementation used in simulation would differ too much from the implementation targeting the real world. %This was the case for the Infinit project, as the implementation used in the simulated environment produced  
+The first method considered, was to target ns-3 for the test bed environment, as it has previously been used for this purpose when testing the Infinit filesystem. This method was attempted at first, but it soon became evident that it has a drawback: the filesystem implementation used for simulation would differ too much from the implementation targeting the real world. %This was the case for the Infinit project, as the implementation used in the simulated environment produced  
 
 % TODO: explain how ns3 could be used to do this
 
@@ -166,7 +181,7 @@ The first method considered, was to target ns-3 for the test bed environment, as
 
 To ensure that all criteria are met, it was decided that the filesystem will be tested using a local emulation testbed. The testbed uses Linux Containers (LXC), a high-performance operating system level virtualization solution, that allows sharing the resources of the host machine among many isolated instances. LXC containers use the Linux kernel cgroups feature to segregate processes, isolating them from other processes, and providing them with their own network space. FUSE-based filesystems can be mounted on LXC containers, but the containers can also share certain directories with the host machine.
 
-Such a testbed has previously been used for analyzing the performance of a P2P swarm \cite{p2plxc} using the hrktorrent BitTorrent client, and bttrack BitTorrent tracker, with a conclusion that LXC is suitable for testing P2P network applications in real world scenarios. Each peer was running in its own container, on top of the hardware node, sharing parts of the system with the host, and very little decrease in download speed was noted when the number of peers was gradually increased from 20 to 100. This is surprising, as a very low-end machine was used for executing the tests (Intel(R) Core(TM)2 Duo CPU T7500 @ 2.20GHz, 1.5 GB of RAM), indicating that the LXC containers have a very low overhead, and running a large amount of nodes is possible.
+Such a testbed has previously been used for analyzing the performance of a P2P swarm \cite{p2plxc} using the hrktorrent BitTorrent client, and bttrack BitTorrent tracker, with the conclusion that LXC is suitable for testing P2P network applications in real world scenarios. Each peer was running in its own container, on top of the hardware node, sharing parts of the system with the host, and very little decrease in download speed was noted when the number of peers was gradually increased from 20 to 100. This is surprising, as a very low-end machine was used for executing the tests (Intel(R) Core(TM)2 Duo CPU T7500 @ 2.20GHz, 1.5 GB of RAM), indicating that the LXC containers have a very low overhead, and running a large amount of nodes is possible.
 
 Nevertheless, some of the benchmarks will require up to 10000 nodes at a time. Even a powerful machine may not be able to handle such a large number of nodes running the P2P filesystem. As every LXC container has its own network device configuration, it is possible to expose it to the wider network. The plan is then to have a number of machines running LXC containers, each contributing a different amount of peers to the filesystem network, depending on the machine's resources.
 
@@ -174,7 +189,7 @@ Nevertheless, some of the benchmarks will require up to 10000 nodes at a time. E
 
 \subsubsection{Andrew benchmark}
 
-The standard method to evaluate performance in the world of distributed file systems is the Andrew benchmark \ref{andrewscale}, consisting of:
+The standard method to evaluate performance in the world of distributed filesystems is the Andrew benchmark \cite{andrewscale}, consisting of:
 \begin{enumerate}
 \item creating a directory hierarchy;
 \item copying files into the created directories;
@@ -183,9 +198,9 @@ The standard method to evaluate performance in the world of distributed file sys
 \item compiling the files into a program.
 \end{enumerate}
 % topologies?
-The filesystem will be accessible using FUSE, so to execute the benchmark, the OpenSSL-1.0.0 library source code will be placed on the filesystem. This is a large-scale open source project, consisting of approximately 1100 source files, and around 700 object files are generated during compilation. Using this OpenSSL library will allow for direct comparison with Infinit \ref{towards}.
+The filesystem will be accessible using FUSE, so to execute the benchmark, the OpenSSL-1.0.0 library source code will be placed on the filesystem. This is a large-scale open source project, consisting of approximately 1100 source files, and around 700 object files are generated during compilation. Using this OpenSSL library will allow for direct comparison with Infinit \cite{towards}.
 
-In order to produce realistic results that could be compared to other file systems, a network composed of 16 nodes (the standard amount in distributed file system evaluations) located in the same LAN will be setup, and the Andrew benchmark will then be executed on the file system. The time required to execute each of the 5 steps of the benchmark will be noted, and compared against Infinit, Pastis, Ivy and others.
+In order to produce realistic results that could be compared to other filesystems, a network composed of 16 nodes (the standard amount in distributed filesystem evaluations) located in the same LAN will be setup, and the Andrew benchmark will then be executed on the filesystem. The time required to execute each of the 5 steps of the benchmark will be noted, and compared against Infinit, Pastis, Ivy and others.
 
 The benchmark will then be executed with a gradually increasing amount of nodes: 50, 100, 500, 1000, 5000, 10000. The times obtained will again be compared against other filesystems.
 
@@ -197,23 +212,26 @@ The first attempt consisted of implementing a subset of Chord (without support f
 
 This instigated a switch to using C++ for development, using the proper C++ API of ns-3. However, as the development of the Chord protocol progressed, it became clear that, although the parts of the ns-3 API relevant to this project are similar to the Unix sockets API (which is in fact one of the main selling points of ns-3), they are not entirely alike, leading to fairly large differences between the prototype used for simulation, and the prototype that would be used in realistic environments.
 
-This led to a search for a different testing environment, concluding with the choice of LXC \ref{p2plxc}. As no user-friendly tool exists to operate LXC containers, a number of shell and Python scripts were written for starting and configuring a large amount of nodes. 
+This led to a search for a different testing environment, concluding with the choice of LXC \cite{p2plxc}. As no user-friendly tool exists to operate LXC containers, a number of shell and Python scripts were written for starting and configuring a large amount of nodes. 
 
-To test the emulation testbed and determine how many nodes a VirtualBox virtual machine running Ubuntu Linux could manage at once, an experiment was setup, where each of the nodes 
+To test the emulation testbed and determine how many nodes a VirtualBox virtual machine running Ubuntu Linux on an Intel(R) Core(TM) i3 CPU M370 @ 2.40GHz, 2 GB of RAM computer could manage at once, an experiment was setup. 
+A Python application capable of sending and receiving files was implemented using the Twisted networking library.
+Using this application, each pair of the nodes exchanged 30 MB files over the network, and CPU usage was monitored during the exchange, while the number of nodes was gradually increased. The results are visible in figure~\ref{cpu_usage}. There is a fairly linear increase in CPU usage, as the number of nodes is increased, and the machine is able to support up to 180 LXC containers running at once.
+
+Considering the experiment was executed on a virtual machine, this is a fairly large number of nodes.
+
 \begin{figure}
 \begin{center}
   \includegraphics[width=11cm]{cpu_nodes.png}
 \end{center}
 \caption{CPU usage with increasing number of nodes}
-\label{flow}
+\label{cpu_usage}
 \end{figure}  
 
 
 \section{Future Plans}
 
-The current goal of the project is to get the filesystem to a state where the ANDREW benchmark can be executed on it. At that point it will be possible to compare the speed of the filesystem to NFS, and this will make it clearer as to how well it scales when nodes are added/removed, and what its most significant short-comings are, in regards to other similar filesystems.
-
-With these taken into account, the modularity of the system will allow 
+The current goal of the project is to get the filesystem to a state where the ANDREW benchmark can be executed on it. At that point it will be possible to compare the speed of the filesystem to other filesystems, and this will make it clearer as to how well it scales when nodes are added/removed, and what its most significant short-comings are, in regards to other similar filesystems.
 
 \subsection{Work Plan}
 
@@ -225,37 +243,37 @@ See figure~\ref{milestones}.
 \hline
 Exam Period & April 8th 2013 - May 30th 2013 \\
 \hline
-Finish implementing Chord and DHash for the Twisted Python framework & June 1st 2013 - June 30th 2013 \\ 
+Finish implementing Chord and DHash for the Twisted Python framework & June 1st 2013 - July 30th 2013 \\ 
 \hline
 \hline
-{\bf Milestone: Peer-to-peer layer finished} & 1st September 2013 \\
+{\bf Milestone: Chord and DHash layers implemented} & August 1st 2013 \\
 \hline
 \hline
-Implement the simple security scheme on top of the DHash layer & July 1st 2013 - July 15th 2013 \\
+Implement the simple security scheme on top of the DHash layer & August 1st 2013 - August 15th 2013 \\
 \hline
-Implement the FUSE interface to the filesystem. & July 16th 2013 - 15th August 2013 \\
+Implement the FUSE interface to the filesystem. & August 15th 2013 - September 15th 2013 \\
 \hline
-Determine if there are any missing parts in the filesystem that prevent the Andrew benchmark from running, and implement them & 16th August 2013 - 30th August 2013 \\
-\hline
-\hline
-{\bf Milestone: Andrew benchmark running} & 1st September 2013 \\
+Determine if there are any missing parts in the filesystem that prevent the Andrew benchmark from running, and implement them & September 15th 2013 - September 30th 2013 \\
 \hline
 \hline
-Compare Andrew benchmark results to other similar filesystems, determine if there are any shortcomings and devise a plan on how to overcome them & 1st September 2013 - 30th September 2013 \\
-\hline
-? & 1st October 2013 - 30th December 2013 \\
-\hline
-? & 1st January 2013 -  30th January 2013 \\
-\hline
-? & 1st February 2013 - 28th February 2013 \\
+{\bf Milestone: Andrew benchmark running} & 1st October 2013 \\
 \hline
 \hline
-{\bf Milestone: Project timetable} & 1st September 2013 \\
+Compare Andrew benchmark results to other similar filesystems, determine if there are any shortcomings and devise a plan on how to overcome them & October 1st 2013 - October 15th 2013 \\
+\hline
+? & 15th October 2013 - 30th December 2013 \\
+\hline
+? & 1st January 2014 -  30th January 2014 \\
+\hline
+? & 1st February 2014 - 28th February 2014 \\
 \hline
 \hline
-Write dissertation & 1st February, 2013 - 3rd April 2013 \\
+{\bf Milestone: Project finished} & 1st February 2014 \\
 \hline
-Create presentation & 4th April 2013 - 30th April 2013 \\
+\hline
+Write dissertation & 1st February, 2014 - 3rd April 2014 \\
+\hline
+Create presentation & 4th April 2014 - 30th April 2014 \\
 \hline
 \end{tabular}
 \caption{Project timetable}
@@ -265,9 +283,6 @@ Create presentation & 4th April 2013 - 30th April 2013 \\
 
 
 %SHIT LEFT TO COVER:
-%quorum crap?
-%security?
-%malicious nodes?
 %overwriting files?
 %
 %introduction
@@ -339,9 +354,7 @@ Create presentation & 4th April 2013 - 30th April 2013 \\
 %
 %In the case that this is deemed inadequate during the development process, a more complicated scheme, such as Dynamic Replication could be implemented instead \cite{dhash}.
 %
-%\subsection{Versioning}
-%Due to the way replication works, not all copies of the file currently in the network are going to be up-to-date. To ensure that the user always receives the most recent copy, when performing a lookup, a weighted voting scheme is going to be introduced. The replicas will be assigned a version number, and each replica of a file will be assigned a certain number of votes. Whenever the file is accessed, or written to, a certain number of $r$ votes to read a file, and a certain number of $w$ votes to write a file will be collected, such that $r + w$ is more than the total number of votes assigned to file. This guarantees that any lookup will always retrieve the most recent version of the file \cite{versioning}.
-%
+
 %\subsection{Cryptography}
 %
 %Unlike other Peer-to-peer systems such as Freenet, the emphasis of this project is not anonymity, but instead simplicity and efficiency. Only a minimal security mechanism will be provided, where the owner's files will be encrypted using a symmetric-key algorithm, with a possible candidate being Twofish (which is being widely used in a lot of products \cite{twofishprod}).
@@ -353,10 +366,7 @@ Create presentation & 4th April 2013 - 30th April 2013 \\
 %
 %Since the contents of the files stored on the filesystem will be encrypted with the owner's key, this will to an extent prevent unauthorised access to users' resources.
 %
-%\subsection{Front-end}
-%
-%The front-end of the filesystem will be based on FUSE, which allows implementing a filesystem as a user space program \cite{fuse}. This would bypass the operating system kernel, leading to greater portability, as FUSE is available for Linux, FreeBSD, NetBSD, OpenSolaris and Mac OS X. FUSE is suitable for long-term projects, as it is well-maintained, and is an official component of the Linux kernel.
-%
+
 %\section{Evaluation}
 %
 %As was mentioned, the implementation targets a real-world setup. However, due to limited resources, the simulator ns-3 \cite{ns3} will be used for specific test cases. This will allow for performing simulated experiments on systems involving a large number of nodes in order to determine how well the system scales, as well as performing real-world experiments with the intent of comparing performance to other well-established filesystems.
@@ -440,7 +450,7 @@ GitHub. https://github.com/
 \bibitem{chordalt}
 Alternatives to the Chord Protocol. Boston University. http://nislab.bu.edu/sc546/sc441Spring2003/CallaMiraniCHORD/alternatives.html
 \bibitem{andrewscale}
-J. Howard, M. Kazar, S. Menees, D. Nichols, M. Satyanarayanan, R. Sidebotham, and M. West. Scale and performance in a distributed file system. ACM Transactions
+J. Howard, M. Kazar, S. Menees, D. Nichols, M. Satyanarayanan, R. Sidebotham, and M. West. Scale and performance in a distributed filesystem. ACM Transactions
 on Computer Systems, 6(1), February 1988.
 \bibitem{p2plxc}
 M. Bardac, R. Deaconescu, and A. M. Florea, ``Scaling Peer-to-Peer
