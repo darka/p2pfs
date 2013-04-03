@@ -44,7 +44,7 @@ The purpose of this MInf dissertation is to design and build a Distributed Peer-
 
 This would address the problem that no distributed P2P filesystems have so far been adopted in real world situations, and therefore have not been exposed to actual real world problems. The availability of such a project would hopefully stimulate further research.
 
-Although the goal of the project is to produce a real world implementation, an environment for testing the prototype must still exist. However, instead of using a network simulator, the goal is to use a light-weight virtualisation solution, LXC Linux containers to run nodes of the system. This will also allow for comparing this filesystem with other peer-to-peer distributed filesystems, without requiring the use of a full fledged network simulator.
+Although the goal of the project is to produce a real world implementation, an environment for testing the prototype must still exist. However, instead of using a network simulator, the goal is to use a light-weight virtualisation solution to run nodes of the system. This will also allow for comparing this filesystem with other peer-to-peer distributed filesystems, without requiring the use of a full fledged network simulator.
 
 % Approach
 % Unaddressed problems
@@ -54,13 +54,17 @@ Although the goal of the project is to produce a real world implementation, an e
 % index!!!
 % what happens when nodes go off??????????
 %
+% perhaps add an unaddressed problems section??? of what you will have to do in the future
 
 \section{Project Overview}
 
-Currently there is no clear consensus in the literature on what distributed file system components lead to achieving the best possible performance (why?) In fact the most common benchmark used to test such file systems, the Andrew benchmark, has itself received a lot of criticism \cite{kernelb} due to the workload not being realistic, and due to few I/O operations leading to a lack of meaningful results. Nevertheless, it is still considered the standard benchmark for filesystem performance \cite{kernelb}. Designing a superior benchmark is however out of scope of this project, and would in fact prevent any attempt to compare this file system with other file systems.
-
 The following section will present a complete overview of the project, starting from the lowest protocol level and ending with the design of the frontend. 
 
+Currently there is no clear consensus in the literature on what distributed file system components lead to achieving the best possible performance (why?) In fact the most common benchmark used to test such file systems, the Andrew benchmark, has itself received a lot of criticism \cite{kernelb} due to the workload not being realistic, and due to few I/O operations leading to a lack of meaningful results. Nevertheless, it is still considered the standard benchmark for filesystem performance \cite{kernelb}. Designing a superior benchmark is however out of scope of this project, and would in fact prevent any attempt to compare this file system with other file systems.
+
+\subsection{Preparation}
+
+As the filesystem will be based on a distributed peer-to-peer model, the user's files may end up bein
 \subsection{Key-Based Routing}
 
 The lowest level of the distributed filesystem will be built on a key-based routing protocol, Chord. The purpose of this level is, given a key and a message, to route the message to the node with an identifier closest to the key. In our case, the key is the SHA-1 hash of the file path, and the identifier is the SHA-1 hash of the IP address of the node. The distance between the node's identifier and the key of the message is determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
@@ -176,7 +180,9 @@ The standard method to evaluate performance in the world of distributed filesyst
 % topologies?
 The filesystem will be accessible using FUSE, so to execute the benchmark, the OpenSSL-1.0.0 library source code will be placed on the filesystem. This is a large-scale open source project, consisting of approximately 1100 source files, and around 700 object files are generated during compilation. Using this OpenSSL library will allow for direct comparison with Infinit \cite{towards}.
 
-In order to produce realistic results that could be compared to other filesystems, a network composed of 16 nodes (the standard amount in distributed filesystem evaluations) located in the same LAN will be setup, and the Andrew benchmark will then be executed on the filesystem. The time required to execute each of the 5 steps of the benchmark will be noted, and compared against Infinit, Pastis, Ivy and others.
+In order to produce realistic results that could be compared to other filesystems, a network composed of 16 nodes (the standard first choice number in distributed filesystem evaluations) located in the same LAN will be setup, and the Andrew benchmark will then be executed on the filesystem. The time required to execute each of the 5 steps of the benchmark will be noted, and compared against Infinit, Pastis, Ivy and possibly other distributed filesystems.
+
+%how will you compare exactly?
 
 The benchmark will then be executed with a gradually increasing amount of nodes: 50, 100, 500, 1000, 5000, 10000. The times obtained will again be compared against other filesystems.
 
