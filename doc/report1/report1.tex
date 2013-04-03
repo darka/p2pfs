@@ -59,15 +59,13 @@ Although the goal of the project is to produce an implementation targeting the r
 
 \section{Project Overview}
 
-The following section will present an overview of the project. The design of a few key parts of the project has not yet been finalized, and although a placeholder solution is provided, a proper solution will be presented in the future.
+The following section will present an overview of the project. 
+It must be noted that the design of a few key parts of the project has not yet been finalized, and although a placeholder solution is provided, a proper solution will be presented in the future.
 
-This distributed peer-to-peer filesystem uses a layered architecture. At the lowest level is the Chord protocol and algorithm for mapping keys to nodes. On top of Chord sits an implementation of a peer-to-peer distributed hash table (DHT). This DHT is used by the FUSE userspace file system interface to retrieve, update and delete files.
+\subsection{Architecture}
 
-Currently there is no clear consensus in the literature on what distributed file system components lead to achieving the best possible performance (why?) 
+This distributed peer-to-peer filesystem uses a layered architecture. At the lowest level is the Chord protocol and algorithm for mapping keys to nodes. On top of Chord sits an implementation of a peer-to-peer distributed hash table (DHT). This DHT maintains a data cache containing the data that has most recently been used by this particular node, as well as the data that other nodes in the network wish to store on this particular node. On top of the DHT and the data cache sits an interface to the filesystem, provided by the FUSE library, allowing the filesystem to be mounted in userspace on any machine running Linux.
 
-\subsection{Preparation}
-
-As the filesystem will be based on a distributed peer-to-peer model, the user's files may end up bein
 \subsection{Key-Based Routing}
 
 The lowest level of the distributed filesystem will be built on a key-based routing protocol, Chord. The purpose of this level is, given a key and a message, to route the message to the node with an identifier closest to the key. In our case, the key is the SHA-1 hash of the file path, and the identifier is the SHA-1 hash of the IP address of the node. The distance between the node's identifier and the key of the message is determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
