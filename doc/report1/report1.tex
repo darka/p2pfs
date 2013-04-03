@@ -152,7 +152,7 @@ The first method considered, was to target ns-3 for the test bed environment, as
 
 \subsubsection{LXC Containers}
 
-To ensure that all criteria are met, it was decided that the filesystem will be tested using a local emulation testbed. The testbed uses Linux Containers (LXC), a high-performance operating system level virtualization solution, that allows sharing the resources of the host machine among many isolated instances. LXC containers use the Linux kernel cgroups feature to segregate processes, isolating them from other processes, and providing them with their own network space. FUSE-based filesystems can be mounted on LXC containers, but the containers can also share certain directories with the host machine.
+To ensure that all criteria are met, it was decided that the filesystem will be tested using a local emulation testbed. The testbed uses Linux Containers (LXC), a high-performance operating system level virtualization solution \cite{lxccont}, that allows sharing the resources of the host machine among many isolated instances. LXC containers use the Linux kernel cgroups feature to segregate processes, isolating them from other processes, and providing them with their own network space. FUSE-based filesystems can be mounted on LXC containers, and the containers can also share certain directories with the host machine.
 
 Such a testbed has previously been used for analyzing the performance of a P2P swarm \cite{p2plxc} using the hrktorrent BitTorrent client, and bttrack BitTorrent tracker, with the conclusion that LXC is suitable for testing P2P network applications in real world scenarios. Each peer was running in its own container, on top of the hardware node, sharing parts of the system with the host, and very little decrease in download speed was noted when the number of peers was gradually increased from 20 to 100. This is surprising, as a very low-end machine was used for executing the tests (Intel(R) Core(TM)2 Duo CPU T7500 @ 2.20GHz, 1.5 GB of RAM), indicating that the LXC containers have a very low overhead, and running a large amount of nodes is possible.
 
@@ -434,6 +434,8 @@ Alternatives to the Chord Protocol. Boston University. http://nislab.bu.edu/sc54
 \bibitem{andrewscale}
 J. Howard, M. Kazar, S. Menees, D. Nichols, M. Satyanarayanan, R. Sidebotham, and M. West. Scale and performance in a distributed filesystem. ACM Transactions
 on Computer Systems, 6(1), February 1988.
+\bibitem{lxccont}
+lxc Linux Containers. http://lxc.sourceforge.net/
 \bibitem{p2plxc}
 M. Bardac, R. Deaconescu, and A. M. Florea, ``Scaling Peer-to-Peer
 Testing using Linux Containers'', in Proceedings of the 9th RoEduNet
