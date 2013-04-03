@@ -6,7 +6,7 @@
 %\usepackage{float}
 \usepackage{algorithmic}
 
-\title{Distributed Peer-to-peer File System}  
+\title{Distributed Peer-to-peer Filesystem}  
 \author{Darius Scerbavicius} 
 \date{4th April 2013}
 
@@ -15,76 +15,50 @@
 \maketitle
 
 \begin{abstract}
-%TODO: rewrite this but you get the idea
 Although the popularity of services similar to DropBox and Google Drive proves that 
 users find such cloud storage file hosting services useful,
-currently no decentralised and distributed filesystem exists that could provide
+currently no decentralised and distributed peer-to-peer filesystem exists that could provide
 a service of similar quality but without dependence on any single vendor.
-%a filesystem requires solving lots of problems, such as file persistence, security, 
-%good behaviour on network failure etc. Testing such an implementation is also not easy,
-%as simulating real network behaviour is hard. 
+In fact, one of the identified problems in peer-to-peer filesystem research is the lack of a system that could be deployed in real world situations. 
 This project attempts to implement such a system,
-and to provide a comparison with other systems with similar goals, by using common
+and to provide a comparison with other systems that have similar goals, by using common
 filesystem benchmarks. 
 
-A testing environment using LXC has been setup and evaluated to determine its suitability for testing the 
-filesystem service. A prototype of the filesystem is currently being worked on.
+An environment for running experiments on such a filesystem has been setup, with preliminary results showing it is suitable for testing such a filesystem.
+A prototype of the filesystem is currently being worked on.
 
 \end{abstract}
 
 \section{Introduction}
 
 A number of companies are providing a remote synchronized directory service, with the most famous examples being Dropbox \cite{dropbox} and Google Drive \cite{gdrive}. These services are not deployed in a peer-to-peer manner -- the user's files are stored on the servers of the company which provides the services. This means, that if the company ever goes out of business, decides to stop offering the service, or simply changes the terms of the service to ones that the user disagrees with, the user will no longer be able to use the service. 
-Furthermore, the proposed project has the potential to offer much more free space to its users than any of the currently available centralised services.
 
-During the last 15 years, a lot of promising technology has been developed that can eliminate the providing vendors while offering the same high quality service. 
+During the last 15 years, a lot of promising technology has been developed that can eliminate the need for 3rd party providers while offering the same high quality service. 
 Systems based on a Distributed Hash Table (DHT) have allowed lookup services to be implemented in a completely decentralised network, allowing any participating nodes to efficiently retrieve data. Implementations of DHTs are being successfully used in various peer-to-peer Internet services, such as BitTorrent and Coral Content Distribution Network \cite{coral}.
 
-Such technology is just as well applicable to distributed filesystems. Attempts to implement such systems have been made, with the most prominent names being CFS \cite{cfs}, Pastis \cite{pastis}, OceanStore \cite{oceanstore}, Ivy \cite{ivy}, Infinit \cite{towards}. Except for Freenet \cite{freenet}, which has a completely different focus on anonymity, all of these filesystems were designed for academic research \cite{surveyofopenproblems}, with performance analyses based mostly on simulations, or otherwise controlled unrealistic environments, and so far no implementations are being used outside the research community by the wider public, and no large-scale high quality open source projects capable of offering such a service have been established.
+Such technology is just as well applicable to distributed filesystems. Attempts to implement such systems have been made, with the most prominent names being CFS \cite{cfs}, Pastis \cite{pastis}, OceanStore \cite{oceanstore}, Ivy \cite{ivy}, Infinit \cite{towards}. Except for Freenet \cite{freenet}, which has a completely different focus on anonymity, all of these filesystems were designed for academic research, with performance analyses based mostly on simulations, or otherwise controlled unrealistic environments, and so far no implementations are being used outside the research community by the wider public.
 
-The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. The implementation would be open source, and make use of efficient, well-tested algorithms, and open source libraries, and would be produced in such a way that users could easily deploy it on their machines. This would address the problem that no distributed P2P filesystems have so far been adopted in real world situations, and therefor have not been exposed to actual real world problems. The availability of such a project would expose its weaknesses and thus stimulate further research.
+In fact one of the main open problems identified by a survey of such file systems, is the lack of performance analyses on real world deployments of P2P file systems \cite{surveyofopenproblems}, as even in the cases where the experiments were executed without a simulator \cite{infinit}, the characteristics of environments used for testing were different from what is expected to happen in the real world. 
 
-Obviously, a comparison with other distributed filesystems in a simulated environment specifically built for testing the filesystem will still be provided.
+The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. The implementation would be open source, and make use of efficient, well-tested algorithms, and open source libraries, and would be produced in such a way that users could easily deploy it on their machines. This would address the problem that no distributed P2P filesystems have so far been adopted in real world situations, and therefore have not been exposed to actual real world problems. The availability of such a project would hopefully stimulate further research.
 
-%TODO: describe some background for each of them?
-%\begin{itemize}
-%\item Security
-%\item Scalability
-%\item Replication
-%\item Version control
-%\item Access control
-%\item Evaluating such a system
-%\end{itemize}
+Although the goal of the project is to produce a real world implementation, an environment for testing the prototype must still exist. However, instead of using a network simulator, the goal is to use a light-weight virtualisation solution, LXC Linux containers to run nodes of the system. This will also allow for comparing this filesystem with other peer-to-peer distributed filesystems.
 
-% Project & Goals
-% Develop a P2P distributed filesystem 
-%
-% DHT - Chord
-%
 % Approach
 % Unaddressed problems
 % File persistence (has this been addressed in any way?)
 % Security (encrypted file contents)
 % Reading files larger than there currently is space available
+% index!!!
 %
-% Cannot use planet lab, emu lab, because university does not give me access
-% proposing a testing system, that allows running multiple nodes (cite paper about bit torrent and lxc)
-% results of running simple chord in such a networked system 
-%
-% Workplan (detailed, exact milestones)
 
 \section{Project Overview}
 
-% add citations?
 Currently there is no clear consensus in the literature on what distributed file system components lead to achieving the best possible performance (why?) In fact the most common benchmark used to test such file systems, the Andrew benchmark, has itself received a lot of criticism \cite{kernelb} due to the workload not being realistic, and due to few I/O operations leading to a lack of meaningful results. Nevertheless, it is still considered the standard benchmark for filesystem performance \cite{kernelb}. Designing a superior benchmark is however out of scope of this project, and would in fact prevent any attempt to compare this file system with other file systems.
 
 The following section will present a complete overview of the project, starting from the lowest protocol level and ending with the design of the frontend. 
 
 \subsection{Key-Based Routing}
-%Ivy’s lack of support for automatically adding new users
-%to a view is intentional.
-%
-%pastis
 
 The lowest level of the distributed filesystem will be built on a key-based routing protocol, Chord. The purpose of this level is, given a key and a message, to route the message to the node with an identifier closest to the key. In our case, the key is the SHA-1 hash of the file path, and the identifier is the SHA-1 hash of the IP address of the node. The distance between the node's identifier and the key of the message is determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
 
@@ -99,8 +73,10 @@ Nodes maintain a routing table that accelerates lookups. In a system of $N$ node
 
 \subsection{Distributed Hash Table}
 
-On top of this lowest level, sits the DHT (distributed hash table). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The canonical DHT for the Chord protocol is the CFS DHash, which the following implementation will be based on.
+On top of this lowest level, sits the DHT (distributed hash table). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The canonical DHT for the Chord protocol is the CFS DHash, which the following implementation will be based on. (how is yours different?)
 
+\subsubsection{Operations}
+To b
 In order to be suitable for usage in a distributed filesystem, The DHT must provide an interface supporting the following operations:
 
 \begin{itemize}
@@ -119,9 +95,11 @@ Deletion will be implemented simply by deleting the file path from the user's fi
 \end{itemize}
 %TODO: address caching
 
-As the filesystem may be deployed on storage drives of varying size, including ones that provide less space than some of the files stored on the world-wide filesystem, the DHT will divide the files into smaller blocks suitable for storage. 
+The filesystem may be deployed on storage drives of varying size, including ones that provide less space than some of the files stored on the world-wide filesystem. 
 
 %TODO: describe how CFS does this
+
+\subsubsection{Storage}
 
 \subsection{Versioning}
 Due to the way replication works, not all copies of the file currently in the network are going to be up-to-date. To ensure that the user always receives the most recent copy, when performing a lookup, a weighted voting scheme is going to be introduced. The replicas will be assigned a version number, and each replica of a file will be assigned a certain number of votes. Whenever the file is accessed, or written to, a certain number of $r$ votes to read a file, and a certain number of $w$ votes to write a file will be collected, such that $r + w$ is more than the total number of votes assigned to file. This guarantees that any lookup will always retrieve the most recent version of the file \cite{versioning}.
