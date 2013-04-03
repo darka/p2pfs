@@ -40,17 +40,11 @@ Furthermore, the proposed project has the potential to offer much more free spac
 During the last 15 years, a lot of promising technology has been developed that can eliminate the providing vendors while offering the same high quality service. 
 Systems based on a Distributed Hash Table (DHT) have allowed lookup services to be implemented in a completely decentralised network, allowing any participating nodes to efficiently retrieve data. Implementations of DHTs are being successfully used in various peer-to-peer Internet services, such as BitTorrent and Coral Content Distribution Network \cite{coral}.
 
-Such technology is just as well applicable to distributed filesystems. Attempts to implement such systems have been made, with the most prominent names being   CFS \cite{cfs}, Pastis \cite{pastis}, OceanStore \cite{oceanstore}, Ivy \cite{ivy}, Infinit \cite{towards}. So far no implementations are being used outside the research community by the wider public, and no large-scale high quality open source projects capable of offering such a service have been established.
+Such technology is just as well applicable to distributed filesystems. Attempts to implement such systems have been made, with the most prominent names being CFS \cite{cfs}, Pastis \cite{pastis}, OceanStore \cite{oceanstore}, Ivy \cite{ivy}, Infinit \cite{towards}. Except for Freenet \cite{freenet}, which has a completely different focus on anonymity, all of these filesystems were designed for academic research \cite{surveyofopenproblems}, with performance analyses based mostly on simulations, or otherwise controlled unrealistic environments, and so far no implementations are being used outside the research community by the wider public, and no large-scale high quality open source projects capable of offering such a service have been established.
 
-The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. 
+The purpose of this MInf dissertation is to build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. The implementation would be open source, and make use of efficient, well-tested algorithms, and open source libraries, and would be produced in such a way that users could easily deploy it on their machines. This would address the problem that no distributed P2P filesystems have so far been adopted in real world situations, and therefor have not been exposed to actual real world problems. The availability of such a project would expose its weaknesses and thus stimulate further research.
 
-%
-%The project consists of developing a back-end based on a peer-to-peer distributed hash table algorithm, and a front-end, which would allow users to place and retrieve files from the filesystem.
-%
-%\section{Problems}
-
-%A distributed filesystem capable of providing a high quality service must solve a very large set 
-%of problems:
+Obviously, a comparison with other distributed filesystems in a simulated environment specifically built for testing the filesystem will still be provided.
 
 %TODO: describe some background for each of them?
 %\begin{itemize}
@@ -81,7 +75,8 @@ The purpose of this MInf dissertation is to build a Distributed Peer-to-peer Fil
 
 \section{Project Overview}
 
-Currently there is clear consensus in the literature on what distributed file system components lead to achieving the best possible performance. In fact the most common benchmark used to test such file systems, the Andrew benchmark, has itself received a lot of criticism due to some reasons (what?). Designing a superior benchmark is however out of scope of this project, and would in fact prevent any attempt to compare this file system with other file systems.
+% add citations?
+Currently there is no clear consensus in the literature on what distributed file system components lead to achieving the best possible performance (why?) In fact the most common benchmark used to test such file systems, the Andrew benchmark, has itself received a lot of criticism \cite{kernelb} due to the workload not being realistic, and due to few I/O operations leading to a lack of meaningful results. Nevertheless, it is still considered the standard benchmark for filesystem performance \cite{kernelb}. Designing a superior benchmark is however out of scope of this project, and would in fact prevent any attempt to compare this file system with other file systems.
 
 The following section will present a complete overview of the project, starting from the lowest protocol level and ending with the design of the frontend. 
 
@@ -423,6 +418,15 @@ In Proc. of OSDI, 2002.
 \bibitem{towards}
 J. Quintard. Towards a worldwide storage infrastructure.
 PhD thesis, University of Cambridge, September 2010.
+\bibitem{freenet}
+The Freenet Project. https://freenetproject.org/
+\bibitem{surveyofopenproblems}
+R. Hasan, Z. Anwar, W. Yurcik, L. Brumbaugh, and
+R. Campbell. A survey of peer-to-peer storage techniques for
+distributed file systems. In ITCC ’05: Proceedings of the
+International Conference on Information Technology: Coding
+and Computing (ITCC’05) - Volume II, pages 205–213,
+Washington, DC, USA, 2005. IEEE Computer Society.
 \bibitem{dhash}
 M. Leslie.
 Reliable Data Storage in Distributed Hash Tables. Oxford University. 2005.
