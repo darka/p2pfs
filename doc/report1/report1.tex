@@ -99,19 +99,19 @@ Nodes maintain a routing table that accelerates lookups. In a system of $N$ node
 
 \subsection{Distributed Hash Table}
 
-On top of this lowest level, sits the DHT (distributed hash table). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The DHT used for this distributed filesystem will be based on CFS DHash (why?).
-% again, why CFS DHash?
+On top of this lowest level, sits the DHT (distributed hash table). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The canonical DHT for the Chord protocol is the CFS DHash, which the following implementation will be based on.
 
 In order to be suitable for usage in a distributed filesystem, The DHT must provide an interface supporting the following operations:
 
 \begin{itemize}
 \item insert(key, value)
 
-The DHT will use Chord to determine which node the key value pair should be stored on. To ensure filesystem persistence, replicas of the value will be stored on k number of nodes coming after the successor of the picked node. It should be noted that the number k has not yet been determined, and a number of experiments will be executed to find a suitable value.
+The DHT will use Chord to determine which node the key value pair should be stored on. To ensure filesystem persistence, replicas of the value will be stored on $k$ number of nodes coming after the successor of the picked node. It should be noted that the number $k$ has not yet been determined, and a number of experiments will be executed to find a suitable value.
+%TODO: describe experiments
 
 \item retrieve(key)
 
-Again, the DHT will use Chord to determine the node carrying the value given by the key. As k number of nodes following that node store a replica of the requested value, the latency to each of them will be measured, and the fastest node will be picked for downloading.
+Again, the DHT will use Chord to determine the node carrying the value given by the key. As $k$ number of nodes following that node store a replica of the requested value, the latency to each of them will be measured, and the fastest node will be picked for downloading.
 
 \item delete(key)
 
