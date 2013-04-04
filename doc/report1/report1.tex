@@ -73,7 +73,11 @@ On top of Chord an implementation of a peer-to-peer distributed hash table will 
 
 A virtual filesystem will then provide an interface to the DHT and the data cache using the FUSE library, allowing the filesystem to be mounted in userspace on any machine running Linux. 
 
-The further sections describe each layer in-depth.
+To enforce a certain degree of security, all data stored on this filesystem will be encrypted. 
+A first time user of the filesystem will have to generate both an AES key for file content encryption, a RSA public/private key pair for authentication, and to decide how much space to allocate to the filesystem.
+The list of all files that belong to the user will be encrypted using AES, and placed in an index file, which itself will be stored in the P2P filesystem under the user's public RSA key.
+
+The further sections provide an in-depth description of each layer of the architecture.
 
 % add some kind of a description of how a filesystem works
 % add graphics?
@@ -152,8 +156,6 @@ This guarantees that any lookup will always retrieve the most recent version of 
 
 The prototype implementation will not have a sophisticated access control system. A simple mechanism based on a hybrid cryptosystem approach will be provided instead.
 
-% why not do sth complicated like Infinit, need a good argument
-
 Each user of the filesystem will have to generate an AES key for encrypting own data, as well as an RSA key pair for authentication.  
 Every user will have a copy of the public keys of all users whose files are stored on this specific user's computer.
 
@@ -163,7 +165,6 @@ If the requesting node provided the correct response, the update would be execut
 The symmetric key mechanism will ensure that the user of the current node cannot read the contents of files that belong to other users of the system, as the current user will only posses own AES key.
 
 This hybrid approach using both symmetric and asymmetric algorithms is necessary to ensure good performance, as asymmetric key algorithms are much more computationally expensive than symmetric key algorithms.
-
 
 \section{Frontend}
 
