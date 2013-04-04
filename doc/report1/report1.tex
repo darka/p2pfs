@@ -63,7 +63,17 @@ It must be noted that the design of a few key parts of the project has not yet b
 
 \subsection{Architecture}
 
-This distributed peer-to-peer filesystem uses a layered architecture. At the lowest level, TCP is used for communication among nodes. On top of it, the Chord protocol and algorithm for is used for mapping keys to nodes. On top of Chord sits an implementation of a peer-to-peer distributed hash table (DHT). This DHT maintains a data cache containing the data that has most recently been used by this particular node, as well as the data that other nodes in the network wish to store on this particular node. On top of the DHT and the data cache sits an interface to the filesystem, provided by the FUSE library, allowing the filesystem to be mounted in userspace on any machine running Linux. The further sections describe each layer in-depth.
+This distributed peer-to-peer filesystem uses a layered architecture.
+
+At the lowest level, the TCP protocol will be used for communication among the nodes participating in the peer-to-peer network. TCP was chosen due to its reliable stream delivery service. The very low level details of using the protocol will, however, not be presented in this report.
+
+On top of the TCP protocol, the Chord protocol and algorithm will be used for mapping files to nodes that should store the particular file. This will be further explained in the Key-Based Routing section.
+
+On top of Chord an implementation of a peer-to-peer distributed hash table will be provided. Alongside Chord, this DHT will maintain a data cache containing the files that have most recently been used by this particular node, as well as the files that other nodes in the network will store on this particular node. 
+
+A virtual filesystem will then provide an interface to the DHT and the data cache using the FUSE library, allowing the filesystem to be mounted in userspace on any machine running Linux. 
+
+The further sections describe each layer in-depth.
 
 % add some kind of a description of how a filesystem works
 % add graphics?
@@ -79,15 +89,29 @@ Chord can be visualized as a network of nodes connected in a ring, where each no
 
 Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer filesystem.
 
-This report will not go into detailed discussion about the workings of the Chord protocol, which is described in \cite{chord}. The main facility of Chord used by this distributed file system is the mechanism to lookup the node, which should store the file, given the path of the file.
+This report will not go into detailed discussion about the workings of the Chord protocol, which is described in \cite{chord}. The main facility of Chord used by this distributed file system is the mechanism to lookup the node which should store the file, given the path of the file.
 
-\subsection{File Cache}
+\subsection{Data Cache}
 
-As Chord will map certain files to certain nodes, each node must have a place to store those files. This will be implemented as a directory on the node's machine, with each file in the directory carrying the name of the hash of its file path. 
+As Chord will map certain files to certain nodes, each node must have a place to store those files. This will be implemented as a directory on the non-virtual filesystem of the node's machine, with each file in the directory carrying the name of the SHA-1 hash of its file path. Hence, whenever there is a need to check if a node is carrying a file with a specific hash, this will be done simply by using standard filesystem facilities to check if the data cache directory contains a file with the given hash as the file name.
+
+\subsection{Index File}
+
+For each user of the distributed peer-to-peer network, an index file, containing the metadata of files that belong to the particular user, will be stored in the network.
+It should be noted that the design of this file has not yet been finalized, and what follows is a briefly described placeholder solution.
+
+The metadata for all files that belong to that particular user will be stored as a SQLite database containing 3 tables:
+\begin{itemize}
+  \item file metadata table;
+  \item directory metadata table;
+  \item symbolic link metadata table.
+\end{itemize}
+
+Instead of using the hash of the file path as the key when storing the index file in the P2P network, the public key of the user's RSA key pair will be used for the index file instead. This will allow the user's client to retrieve the index file as long as the user maintains possession of the generated RSA key pair. As the index file will contain paths to all of the user's files, the client will then be able to retrieve them by simply taking the SHA-1 hash of the file path, and using the DHT to query the network.
 
 \subsection{Distributed Hash Table}
 
-On top of Chord and the file cache, sits the distributed hash table (DHT). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. As was previously mentioned, in our case the key is the hash of the file path in the file system, and the value is the contents of the file.
+On top of Chord and the file cache, the distributed hash table (DHT) will be implemented. Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. As was previously mentioned, in our case the key will be the hash of the file path in the file system, and the value will be the contents of the file.
 
 The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The canonical DHT for the Chord protocol is the CFS DHash, which the following implementation will be based on. 
 
