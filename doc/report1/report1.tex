@@ -6,8 +6,11 @@
 %\usepackage{float}
 \usepackage{algorithmic}
 
-\title{Distributed Peer-to-peer Filesystem}  
-\author{Darius Scerbavicius} 
+\title{MInf4 Project Phase 1 Report\\
+Distributed Peer-to-peer Filesystem}  
+
+\author{Darius Scerbavicius\\s0969755\\
+Supervisor: Stratis Viglas} 
 \date{4th April 2013}
 
 \begin{document}
@@ -66,16 +69,16 @@ It must be noted that the design of a few key parts of the project has not yet b
 
 This distributed peer-to-peer filesystem uses a layered architecture.
 
-At the lowest level, the TCP protocol will be used for communication among the nodes participating in the peer-to-peer network. TCP was chosen due to its reliable stream delivery service. The very low level details of using the protocol will, however, not be presented in this report.
+At the lowest level, the TCP protocol \cite{tcp} will be used for communication among the nodes participating in the peer-to-peer network. TCP was chosen due to its reliable stream delivery service. The very low level details of using the protocol will, however, not be presented in this report.
 
-On top of the TCP protocol, the Chord protocol and algorithm will be used for mapping files to nodes that should store the particular file. This will be further explained in the Key-Based Routing section.
+On top of the TCP protocol, the Chord protocol and algorithm \cite{chord} will be used for mapping files deployed on the filesystem to nodes, selected by the algorithm to store the files. This will be further explained in the Key-Based Routing section.
 
-On top of Chord an implementation of a peer-to-peer distributed hash table will be provided. Alongside Chord, this DHT will maintain a data cache containing the client's files, as well as files that other nodes in the network want to store on this particular node. 
+On top of Chord, an implementation of a peer-to-peer distributed hash table will be provided. Alongside Chord, for each client using the network, this DHT will maintain a data cache on the client's machine, containing the files that belong to that client, as well as files that other nodes in the network intend to store on that particular node. 
 
-A virtual filesystem will then provide an interface to the DHT and the data cache using the FUSE library, allowing the filesystem to be mounted in userspace on any machine running Linux. 
+A virtual filesystem will then provide an interface to the DHT and the data cache using the FUSE \cite{fuse} library, allowing the filesystem to be mounted in userspace on any machine running Linux. 
 
 To enforce a certain degree of security, all data stored on this filesystem will be encrypted. 
-A first time user of the filesystem will have to generate both an AES key for file content encryption, and a RSA public/private key pair for authentication
+A first time user of the filesystem will have to generate both an AES key for file content encryption, and a RSA public/private key pair for authentication.
 
 An index file, containing a list of all files that belong to the user will also be encrypted using AES, and stored in the P2P filesystem under the user's public RSA key. This will be explained in the Index File section.
 
@@ -89,9 +92,9 @@ The further sections provide an in-depth description of each layer of the archit
 
 The lowest level of the distributed filesystem will be built on a key-based routing (KBR) protocol, Chord \cite{chord}. The purpose of a KBR protocol is, given a key and a message, to route the message to the node with an identifier closest to the key.
 
-A KBR protocol can route a message with any key, and the definition of a key is imposed by the service using the KBR protocol. In our case, the key will be the SHA-1 hash of the file path, and the node identifier will be the SHA-1 hash of the IP address of the node. In order to be able to route the message to the closest node, the distance between keys and identifiers has to be defined. The distance between the node's identifier and the key of the message will be determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
+A KBR protocol can route a message with any given key, and the definition of a key is imposed by the service using the KBR protocol. In our case, the key will be the SHA-1 hash of the file path, and the node identifier will be the SHA-1 hash of the IP address of the node. In order to be able to route the message to the closest node, the distance between keys and identifiers has to be defined. The distance between the node's identifier and the key of the message will be determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
 
-This report will not go into a detailed discussion about the workings of the Chord protocol, which is described in \cite{chord}, but a brief description is provided.
+This report will not go into a detailed discussion about the workings of the Chord protocol, which is described in \cite{chord}, but a brief outline is provided.
 Chord can be visualized as a network of nodes connected in a ring, where each node is aware of its neighbours: its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. The value of a key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
 
 Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer filesystem.
@@ -114,13 +117,13 @@ The DHT will provide an interface supporting the following operations:
 \begin{itemize}
 \item insert(key, value)
 
-The DHT will use Chord to determine which node the key value pair should be stored on. To ensure data durability in the network, replicas of the value will need to be stored on a number of nodes after the successor of the node presented by Chord (see: Future Plans).
+The DHT will use Chord to determine which node the key value pair should be stored on. To ensure data durability in the network, replicas of the value will need to be stored on a number of nodes in the Chord ring, after the successor of the node presented by Chord. This is discussed in Future Plans.
 
 \item retrieve(key)
 
-The DHT will first check whether the client itself currently has an object with the key in its data cache. In the case that it does, the DHT will return an object descriptor of that file.
+The DHT will first check whether the client itself currently has an object with the key in its data cache. In the case that it does, the DHT will return its object descriptor, namely the Unix file descriptor.
 In the case that it does not, the DHT will use Chord to determine the node carrying the value given by the key, and then ask the node to send the value to the client.
-Once the file is downloaded to the client's data cache, an object descriptor to the file will be returned.
+Once the file is downloaded to the client's data cache, a file descriptor will be returned.
 
 \end{itemize}
 
@@ -128,7 +131,7 @@ The filesystem may be deployed on storage drives of varying size, including ones
 
 \subsection{Index File}
 
-For each user of the distributed peer-to-peer network, an index file, containing the metadata of files, such as owner, group, and permissions, belonging to the particular user, will be stored in the network.
+For each user of the distributed peer-to-peer network, an index file, containing the metadata of files (such as the file's owner, group, and permissions) belonging to the particular user, will be stored in the network.
 It should be noted that the design of this file has not yet been finalized, and what follows is a briefly described placeholder solution.
 
 The metadata for all files that belong to that particular user will be stored as a SQLite database containing 3 tables:
@@ -137,7 +140,7 @@ The metadata for all files that belong to that particular user will be stored as
   \item directory metadata table;
   \item symbolic link metadata table.
 \end{itemize}
-The contents of these three tables will contain file names, paths and file system attributes. This data will be used by FUSE in order to answer queries about the attributes of all file system objects.
+The contents of these three tables will contain file names, paths and file system attributes. This data will be used by FUSE \cite{fuse} (see Frontend) in order to answer queries about the attributes of all file system objects.
 
 Whenever a user creates a new file (or a different filesystem object), a record of the object will be inserted into the database, and likewise the record will be deleted when the user deletes that particular file.
 
@@ -149,12 +152,13 @@ Instead of using the hash of the file path as the key when storing the index fil
 The prototype implementation will not have a sophisticated access control system. As was briefly mentioned in the Architecture section, a simple mechanism based on a hybrid cryptosystem approach will be provided instead.
 
 Each user of the filesystem will have to generate an AES key for encrypting own data, as well as an RSA key pair for authentication.  
+% introduce another SQL database here?
 Every user will have a copy of the public keys of all users whose files are stored on this specific user's computer.
 
 The asymmetric key encryption mechanism will ensure that integrity is maintained. If a node received a request to update a file currently stored on the node's machine, the node would use the public key associated with that file to construct a challenge, and send it to the requesting node, awaiting a response.  
 If the requesting node provided the correct response, the update would be executed. 
 
-The symmetric key mechanism will ensure that the user of the current node cannot read the contents of files that belong to other users of the system, as the current user will only posses own AES key.
+The symmetric key mechanism will ensure that the user of the current node cannot read the contents of files that belong to other users of the system, as the current user will only posses own AES key, and not the key of any other nodes in the network.
 
 This hybrid approach using both symmetric and asymmetric algorithms is necessary to ensure good performance, as asymmetric key algorithms are much more computationally expensive than symmetric key algorithms.
 
@@ -236,7 +240,7 @@ Using this application, each pair of the nodes exchanged 30 MB files over the ne
 
 Considering the experiment was executed on a virtual machine, this is a fairly large number of nodes, and a non-virtualized instance of Linux is expected to be able to run an even larger amount of nodes in parallel.
 
-Currently, the Python application used in the experiment is being developed into an implementation of Chord.
+The Python application used in the experiment is currently being developed into an implementation of Chord.
 
 \begin{figure}
 \begin{center}
@@ -252,9 +256,9 @@ Currently, the Python application used in the experiment is being developed into
 \subsection{Design}
 As was mentioned in the project overview, some of the issues with the file-system design have not yet been addressed. 
 
-First of all, there is still no clear plan on how to ensure data durability, as many nodes in the network will often go offline. The current plan is to rely on data redundancy and store file replicas on a number of nodes in the Chord ring after the successor of the node which was returned by the query. 
+First of all, there is still no clear plan on how to ensure data durability, as many nodes in the network will often go off-line. The current plan is to rely on data redundancy and store file replicas on a number of nodes in the Chord ring after the successor of the node which was returned by a query. 
 This would improve file downloading speed when querying the network for a specific file, as the DHT will be able to measure the latency to each of the nodes carrying the replica, and pick the fastest node for downloading.
-It should also be noted that the number of nodes that should carry the replicas has not yet been determined, and a number of experiments will need to be executed to find a suitable value. These experiments have also not yet been designed.
+It should also be noted that a suitable number of nodes carrying the replicas has not yet been determined, and a batch of experiments will need to be executed to find a suitable value. These experiments have also not yet been designed.
 
 Secondly, not all copies of the file currently in the network are going to be up-to-date. To ensure that the user always receives the most recent copy, when performing a lookup, a weighted voting scheme will need to be introduced. The replicas will be assigned a version number, and each replica of a file will be assigned a certain number of votes. Whenever the file is accessed, or written to, a certain number of $r$ votes to read a file, and a certain number of $w$ votes to write a file will be collected, such that $r + w$ is more than the total number of votes assigned to file.  
 This mechanism should guarantee that any lookup will always retrieve the most recent version of the file \cite{versioning}, however, the implementation details of the mechanism are not yet finished. 
@@ -278,29 +282,29 @@ An overview of the workplan is available in figure~\ref{milestones}.
 \hline
 Exam Period & April 8th 2013 - May 30th 2013 \\
 \hline
-Finish implementing Chord and DHash for the Twisted Python framework & June 1st 2013 - July 30th 2013 \\ 
+Address the design issues listed in future plans & June 1st 2013 - June 30th 2013 \\ 
+\hline
+Finish implementing Chord & June 1st 2013 - August 30th 2013 \\ 
 \hline
 \hline
-{\bf Milestone: Chord and DHash layers implemented} & August 1st 2013 \\
+{\bf Milestone: Chord layer implemented} & September 1st 2013 \\
 \hline
 \hline
-Implement the simple security scheme on top of the DHash layer & August 1st 2013 - August 15th 2013 \\
+Implement DHash and the simple security scheme on top of the DHash layer & September 1st 2013 - September 30th 2013 \\
 \hline
-Implement the FUSE interface to the filesystem. & August 15th 2013 - September 15th 2013 \\
+Implement the FUSE interface to the filesystem. & October 1st 2013 - October 30th 2013 \\
 \hline
-Determine if there are any missing parts in the filesystem that prevent the Andrew benchmark from running, and implement them & September 15th 2013 - September 30th 2013 \\
-\hline
-\hline
-{\bf Milestone: Andrew benchmark running} & 1st October 2013 \\
+Determine if there are any missing parts in the filesystem that prevent the Andrew benchmark from running, and implement them & November 1st 2013 - November 15th 2013 \\
 \hline
 \hline
-Compare Andrew benchmark results to other similar filesystems, determine if there are any shortcomings and devise a plan on how to overcome them & October 1st 2013 - October 15th 2013 \\
+{\bf Milestone: Andrew benchmark running} & 15th November 2013 \\
 \hline
-? & 15th October 2013 - 30th December 2013 \\
 \hline
-? & 1st January 2014 -  30th January 2014 \\
+Compare Andrew benchmark results to other similar filesystems, determine if there are any shortcomings and devise a plan on how to overcome them & November 15th 2013 - December 1st 2013 \\
 \hline
-? & 1st February 2014 - 28th February 2014 \\
+Address the determined shortcomings of the filesystem & 1st December 2013 - 15th January 2014 \\
+\hline
+Finish evaluating the filesystem and obtain final benchmark results & 15th January 2014 - 30th January 2014 \\
 \hline
 \hline
 {\bf Milestone: Project finished} & 1st February 2014 \\
@@ -436,6 +440,8 @@ Democratizing content publication with Coral.
 In NSDI, Mar. 2004.
 \bibitem{ns3}
 ns-3. Discrete-event network simulator. http://www.nsnam.org/
+\bibitem{tcp}
+Transmission Control Protocol. Protocol Specification. http://tools.ietf.org/html/rfc793
 \bibitem{chord} 
 I. Stoica, R. Morris, D. Karger, M. F. Kaashoek, and
 H. Balakrishnan. Chord: A scalable peer-to-peer lookup
