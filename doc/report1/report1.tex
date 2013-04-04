@@ -16,15 +16,14 @@
 
 \begin{abstract}
 Although the popularity of services similar to DropBox and Google Drive is a good basis to believe that 
-users find such cloud storage file hosting services useful, all of these services depend on third party vendors. Currently no decentralised and distributed peer-to-peer filesystem exists that could provide
-a service of similar quality but without dependence on any single vendor.
+users find such cloud storage file hosting services useful, all of these services depend on third party vendors. Current research on distributed peer-to-peer filesystems shows that building a service of similar quality but without dependence on any single vendor is possible.
 
-In fact, one of the main identified problems in this field is the lack of a distributed peer-to-peer filesystem that could be deployed in such real world situations. 
+In fact, one of the main identified problems in this field is the lack of an implementation of a distributed peer-to-peer filesystem that could be deployed in such real world situations. 
 
 This project attempts to implement such a system,
 and to provide a comparison with other systems that have similar goals, by using the standard Andrew filesystem benchmark. 
 
-So far an environment for running experiments on such a filesystem has been setup, with preliminary results showing it is suitable for testing such a filesystem.
+So far an environment for running experiments on such a filesystem has been setup, with preliminary results showing it is suitable for testing the filesystem.
 A prototype of the filesystem is currently being worked on.
 
 \end{abstract}
@@ -36,14 +35,14 @@ A number of companies are providing a remote synchronized directory service, wit
 During the last 15 years, a lot of promising technology has been developed that can eliminate the need for 3rd party providers while offering the same high quality service. 
 Systems based on a Distributed Hash Table (DHT) have allowed lookup services to be implemented in a completely decentralised network, allowing any participating nodes to efficiently retrieve data. Implementations of DHTs are being successfully used in various peer-to-peer Internet services, such as BitTorrent and Coral Content Distribution Network \cite{coral}.
 
-Such technology is just as well applicable to distributed filesystems. Attempts to implement such systems have been made, with the most prominent names being CFS \cite{cfs}, Freenet \cite{freenet}, Pastis \cite{pastis}, OceanStore \cite{oceanstore}, Ivy \cite{ivy}, Infinit \cite{towards}. Except for Freenet \cite{freenet}, which has a completely different focus on anonymity, all of these filesystems were designed for academic research, with performance analyses based mostly on simulations, or otherwise controlled unrealistic environments, and so far no implementations are being used outside the research community by the wider public.
+Such technology is just as well applicable to distributed filesystems. Attempts to implement such systems have been made, with the most prominent names being CFS \cite{cfs}, Freenet \cite{freenet}, Pastis \cite{pastis}, OceanStore \cite{oceanstore}, Ivy \cite{ivy}, Infinit \cite{towards}. Except for Freenet, which has a completely different focus on anonymity, all of these filesystems were designed for academic research, with performance analyses based mostly on simulations, or controlled unrealistic environments, and so far no implementations are being used outside the research community by the wider public.
 
 In fact one of the main open problems identified by a survey of such file systems, is the lack of performance analyses on real world deployments of P2P file systems \cite{surveyofopenproblems}. 
-Even in the cases where the experiments were executed without a simulator \cite{infinit}, there was either a very small number of nodes connected to the network, or some of the characteristics of the network were not representative of the real world: in one case, the network was geographically isolated to one college campus, and in another, the network consisted of nodes which were all always connected to the Internet.
+Even in the cases where the experiments were executed without a simulator \cite{towards}, there was either a very small number of nodes connected to the network, or some of the characteristics of the network were not representative of the real world: in one case, the network was geographically isolated to one college campus, and in another, the network consisted of nodes which were all always connected to the network.
 
 The purpose of this MInf dissertation is to design and build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. The implementation will be open source, and make use of efficient, well-tested algorithms and open source libraries, and will be provided in an easy to install package, so that users can easily deploy it on their machines. 
 
-The availability of such a prototype will address the problem that no distributed P2P filesystems have so far been exposed to real world situations. The availability of such a project will hopefully stimulate further research.
+The availability of such an easy to deploy prototype will allow for executing experiments on a network deployed world-wide, addressing the problem of a lack of real world performance analyses and hopefully stimulating further research.
 
 Although the goal of the project is to produce an implementation targeting the real world, an environment for testing the prototype must still exist. Instead of using a network simulator, the goal is to use a light-weight virtualisation solution to run nodes of the system. This will allow for comparing this filesystem with other peer-to-peer distributed filesystems, without requiring the use of a full fledged network simulator.
 
@@ -69,22 +68,18 @@ This distributed peer-to-peer filesystem uses a layered architecture. At the low
 % add some kind of a description of how a filesystem works
 % add graphics?
 
-\subsection{Networking}
-
-At the very bottom level of the filesystem, the TCP network protocol will be used to communicate among nodes.
-
 % TODO:finish this!!!
 \subsection{Key-Based Routing}
 
 The lowest level of the distributed filesystem will be built on a key-based routing (KBR) protocol, Chord \cite{chord}. The purpose of a KBR protocol is, given a key and a message, to route the message to the node with an identifier closest to the key.
 
-A KBR protocol can route a message with any key, and the definition of a key is imposed by the service using the KBR protocol. In our case, the key is the SHA-1 hash of the file path, and the node identifier is the SHA-1 hash of the IP address of the node. In order to be able to route the message to the closest node, the distance between keys and identifiers has to be defined. The distance between the node's identifier and the key of the message is determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
+A KBR protocol can route a message with any key, and the definition of a key is imposed by the service using the KBR protocol. In our case, the key will be the SHA-1 hash of the file path, and the node identifier will be the SHA-1 hash of the IP address of the node. In order to be able to route the message to the closest node, the distance between keys and identifiers has to be defined. The distance between the node's identifier and the key of the message will be determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
 
-Chord can be imagined as a network of nodes connected in a ring, where each node is aware of its neighbours: its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. The value of a key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
+Chord can be visualized as a network of nodes connected in a ring, where each node is aware of its neighbours: its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. The value of a key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
 
 Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer filesystem.
 
-This report will not go into detailed discussion about the working of the Chord protocol, which is described in \cite{chord}. The reason to use Chord is that given a file path, it provides a facility to lookup the node, which should store the file.
+This report will not go into detailed discussion about the workings of the Chord protocol, which is described in \cite{chord}. The main facility of Chord used by this distributed file system is the mechanism to lookup the node, which should store the file, given the path of the file.
 
 \subsection{File Cache}
 
@@ -92,7 +87,7 @@ As Chord will map certain files to certain nodes, each node must have a place to
 
 \subsection{Distributed Hash Table}
 
-On top of Chord and the file cache, sits the distributed hash table (DHT). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. As was mentioned, in our case the key is the hash of the file path in the file system, and the value is the contents of the file.
+On top of Chord and the file cache, sits the distributed hash table (DHT). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. As was previously mentioned, in our case the key is the hash of the file path in the file system, and the value is the contents of the file.
 
 The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The canonical DHT for the Chord protocol is the CFS DHash, which the following implementation will be based on. 
 
