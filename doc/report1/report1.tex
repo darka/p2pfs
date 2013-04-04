@@ -149,6 +149,8 @@ Instead of using the hash of the file path as the key when storing the index fil
 
 \subsection{Security}
 
+The goal of implementing a security layer for the filesystem is to ensure that no filesystem user can read any other users' files, as well as to prevent malicious users from overwriting other user data.
+
 The prototype implementation will not have a sophisticated access control system. As was briefly mentioned in the Architecture section, a simple mechanism based on a hybrid cryptosystem approach will be provided instead.
 
 Each user of the filesystem will have to generate an AES key for encrypting own data, as well as an RSA key pair for authentication.  
