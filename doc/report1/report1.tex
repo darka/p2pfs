@@ -128,7 +128,7 @@ The filesystem may be deployed on storage drives of varying size, including ones
 
 \subsection{Index File}
 
-For each user of the distributed peer-to-peer network, an index file, containing the metadata of files that belong to the particular user, will be stored in the network.
+For each user of the distributed peer-to-peer network, an index file, containing the metadata of files, such as owner, group, and permissions, belonging to the particular user, will be stored in the network.
 It should be noted that the design of this file has not yet been finalized, and what follows is a briefly described placeholder solution.
 
 The metadata for all files that belong to that particular user will be stored as a SQLite database containing 3 tables:
