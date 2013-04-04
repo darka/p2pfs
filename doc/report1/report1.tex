@@ -66,6 +66,7 @@ It must be noted that the design of a few key parts of the project has not yet b
 
 This distributed peer-to-peer filesystem uses a layered architecture. At the lowest level, TCP is used for communication among nodes. On top of it, the Chord protocol and algorithm for is used for mapping keys to nodes. On top of Chord sits an implementation of a peer-to-peer distributed hash table (DHT). This DHT maintains a data cache containing the data that has most recently been used by this particular node, as well as the data that other nodes in the network wish to store on this particular node. On top of the DHT and the data cache sits an interface to the filesystem, provided by the FUSE library, allowing the filesystem to be mounted in userspace on any machine running Linux. The further sections describe each layer in-depth.
 
+% add some kind of a description of how a filesystem works
 % add graphics?
 
 \subsection{Networking}
@@ -87,7 +88,7 @@ This report will not go into detailed discussion about the working of the Chord 
 
 \subsection{Distributed Hash Table}
 
-On top of this lowest level, sits the DHT (distributed hash table). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The canonical DHT for the Chord protocol is the CFS DHash, which the following implementation will be based on. (how is yours different?)
+On top of this lowest level, sits the DHT (distributed hash table). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The canonical DHT for the Chord protocol is the CFS DHash, which the following implementation will be based on. 
 
 \subsubsection{Operations}
 The DHT will provide an interface supporting the following operations:
@@ -190,13 +191,13 @@ The Andrew benchmark \cite{andrewscale}, consists of:
 \item compiling the files into a program.
 \end{enumerate}
 % topologies?
-The filesystem will be accessible using FUSE, so to execute the benchmark, the OpenSSL-1.0.0 library source code will be placed on the filesystem. This is a large-scale open source project, consisting of approximately 1100 source files, and around 700 object files are generated during compilation. Using this OpenSSL library will allow for direct comparison with Infinit \cite{towards}.
+In filesystem evaluation, these steps are usually executed in the directory hierarchy of the source code of a large open source project, such as the OpenSSL library or the Linux kernel. As this filesystem will be accessible using FUSE, to execute the benchmark, the OpenSSL-1.0.0 library source code will be placed on a mount point of the filesystem. OpenSSL is a large-scale open source project, consisting of approximately 1100 source files, and around 700 object files are generated during compilation. Using this specific open source project for the directory hierarchy will allow for direct comparison with Infinit \cite{towards}.
 
 In order to produce realistic results that could be compared to other filesystems, a network composed of 16 nodes (the standard first choice number in distributed filesystem evaluations) located in the same LAN will be setup, and the Andrew benchmark will then be executed on the filesystem. The time required to execute each of the 5 steps of the benchmark will be noted, and compared against Infinit, Pastis, Ivy and possibly other distributed filesystems.
 
 %how will you compare exactly?
 
-The benchmark will then be executed with a gradually increasing amount of nodes: 50, 100, 500, 1000, 5000, 10000. The times obtained will again be compared against other filesystems.
+The benchmark will then be executed with a gradually increasing amount of nodes: 50, 100, 500, 1000, 5000, 10000. The times obtained will again be compared against the results presented in the evaluation of the previously mentioned three filesystems.
 
 \section{Current Progress}
 
@@ -225,11 +226,9 @@ Considering the experiment was executed on a virtual machine, this is a fairly l
 
 \section{Future Plans}
 
-The current goal of the project is to get the filesystem to a state where the ANDREW benchmark can be executed on it. At that point it will be possible to compare the speed of the filesystem to other filesystems, and this will make it clearer as to how well it scales when nodes are added/removed, and what its most significant short-comings are, in regards to other similar filesystems.
+The current goal of the project is to finish implementing Chord, DHash and the FUSE interface to the filesystem. At that point the filesystem will be in the state where the Andrew benchmark can be executed on it, thus making it possible to compare the speed of the filesystem to other filesystems. This will make it clearer as to how well it scales when nodes are added/removed, and what its most significant short-comings are, in regards to other similar filesystems.
+An overview of the workplan is available in figure~\ref{milestones}.
 
-\subsection{Work Plan}
-
-See figure~\ref{milestones}.
 \begin{figure}
 \begin{tabular}{ | p{0.65\textwidth} | p{0.35\textwidth} | }
 \hline
