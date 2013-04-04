@@ -69,13 +69,14 @@ At the lowest level, the TCP protocol will be used for communication among the n
 
 On top of the TCP protocol, the Chord protocol and algorithm will be used for mapping files to nodes that should store the particular file. This will be further explained in the Key-Based Routing section.
 
-On top of Chord an implementation of a peer-to-peer distributed hash table will be provided. Alongside Chord, this DHT will maintain a data cache containing the files that have most recently been used by this particular node, as well as the files that other nodes in the network will store on this particular node. 
+On top of Chord an implementation of a peer-to-peer distributed hash table will be provided. Alongside Chord, this DHT will maintain a data cache containing the files that have most recently been used, as well as the files that other nodes in the network will store on this particular node. 
 
 A virtual filesystem will then provide an interface to the DHT and the data cache using the FUSE library, allowing the filesystem to be mounted in userspace on any machine running Linux. 
 
 To enforce a certain degree of security, all data stored on this filesystem will be encrypted. 
 A first time user of the filesystem will have to generate both an AES key for file content encryption, a RSA public/private key pair for authentication, and to decide how much space to allocate to the filesystem.
-The list of all files that belong to the user will be encrypted using AES, and placed in an index file, which itself will be stored in the P2P filesystem under the user's public RSA key.
+
+An index file, containing a list of all files that belong to the user will also be encrypted using AES, and stored in the P2P filesystem under the user's public RSA key. This will be explained in the Index File section.
 
 The further sections provide an in-depth description of each layer of the architecture.
 
@@ -93,11 +94,35 @@ Chord can be visualized as a network of nodes connected in a ring, where each no
 
 Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer filesystem.
 
-This report will not go into detailed discussion about the workings of the Chord protocol, which is described in \cite{chord}. The main facility of Chord used by this distributed file system is the mechanism to lookup the node which should store the file, given the path of the file.
+This report will not go into detailed discussion about the workings of the Chord protocol, which is described in \cite{chord}. The main facility of Chord used by this distributed file system is the mechanism to lookup the node which should store the file, given the hash of the path of the file.
 
 \subsection{Data Cache}
 
-As Chord will map certain files to certain nodes, each node must have a place to store those files. This will be implemented as a directory on the non-virtual filesystem of the node's machine, with each file in the directory carrying the name of the SHA-1 hash of its file path. Hence, whenever there is a need to check if a node is carrying a file with a specific hash, this will be done simply by using standard filesystem facilities to check if the data cache directory contains a file with the given hash as the file name.
+As Chord will map certain files to certain nodes, each node must have a designated location to store those files. This will be implemented as a directory on the non-virtual filesystem of the node's machine, with each file in the directory carrying the name of the SHA-1 hash of its file path in the virtual file system. Hence, whenever there is a need to check if a node is carrying a file with a specific hash, this will be done simply by using standard filesystem facilities to check if the data cache directory contains a file with the given hash as the file name.
+
+\subsection{Distributed Hash Table}
+
+On top of Chord and the data cache, the distributed hash table (DHT) will be implemented. Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. As was previously mentioned, in our case the key will be defined as the hash of the file path in the file system, and the value will be defined as the contents of the file.
+
+The DHT uses the key-based routing protocol to determine the sought node. The canonical DHT for the Chord protocol is the CFS DHash \cite{cfs} \cite{towards}, which the following implementation will be based on. 
+
+\subsubsection{Operations}
+The DHT will provide an interface supporting the following operations:
+
+\begin{itemize}
+\item insert(key, value)
+
+The DHT will use Chord to determine which node the key value pair should be stored on. To ensure data durability in the network, replicas of the value will need to be stored on a number of nodes after the successor of the node presented by Chord. This will be addressed in the future.
+
+\item retrieve(key)
+
+The DHT will first check whether the client itself currently has an object with the key in its data cache. In the case that it does, the DHT will return an object descriptor of that file.
+In the case that it does not, the DHT will use Chord to determine the node carrying the value given by the key, and then ask the node to send the value to the client.
+Once the file is downloaded to the client's data cache, an object descriptor to the file will be returned.
+
+\end{itemize}
+
+The filesystem may be deployed on storage drives of varying size, including ones that provide less space than some of the files stored on the world-wide filesystem. 
 
 \subsection{Index File}
 
@@ -110,40 +135,12 @@ The metadata for all files that belong to that particular user will be stored as
   \item directory metadata table;
   \item symbolic link metadata table.
 \end{itemize}
-The contents of these three tables will contain file names, paths and file system attributes. This data will be used by FUSE in order to answer queries about the attributes of all file system objects. The design of these tables has not been finalized and is part of future work.
+The contents of these three tables will contain file names, paths and file system attributes. This data will be used by FUSE in order to answer queries about the attributes of all file system objects.
 
 Whenever a user creates a new file (or a different filesystem object), a record of the object will be inserted into the database, and likewise the record will be deleted when the user deletes that particular file.
 
 Instead of using the hash of the file path as the key when storing the index file in the P2P network, the public key of the user's RSA key pair will be used for the index file instead. This will allow the user's client to retrieve the index file as long as the user maintains possession of the generated RSA key pair. As the index file will contain paths to all of the user's files, the client will then be able to retrieve them by simply taking the SHA-1 hash of the file path, and using the DHT to query the network.
 
-\subsection{Distributed Hash Table}
-
-On top of Chord and the file cache, the distributed hash table (DHT) will be implemented. Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. As was previously mentioned, in our case the key will be the hash of the file path in the file system, and the value will be the contents of the file.
-
-The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The canonical DHT for the Chord protocol is the CFS DHash, which the following implementation will be based on. 
-
-\subsubsection{Operations}
-The DHT will provide an interface supporting the following operations:
-
-\begin{itemize}
-\item insert(key, value)
-
-The DHT will use Chord to determine which node the key value pair should be stored on. To ensure filesystem persistence, replicas of the value will be stored on $k$ number of nodes coming after the successor of the picked node. It should be noted that the number $k$ has not yet been determined, and a number of experiments will be executed to find a suitable value.
-%TODO: describe experiments
-
-\item retrieve(key)
-
-The DHT will first check whether the client itself currently has an object with the key in its file cache. In the case that it does, the DHT will return a file descriptor of that file.
-In the case that it does not, the DHT will use Chord to determine the node carrying the value given by the key. As $k$ number of nodes following that node store a replica of the requested value, the latency to each of them will be measured, and the fastest node will be picked for downloading.
-Once the file is downloaded to the client's cache, a file descriptor to the file will be returned.
-% you need to extend this, it is not clear
-
-\item delete(key)
-
-Deletion will be implemented simply by deleting the file path from the user's index file (which will be discussed further). To an extent, this also guards against malicious injections of large amounts of data \cite{cfs}, as such data will be gradually deleted.
-\end{itemize}
-
-The filesystem may be deployed on storage drives of varying size, including ones that provide less space than some of the files stored on the world-wide filesystem. 
 
 \subsection{Versioning}
 Not all copies of the file currently in the network are going to be up-to-date. 
@@ -242,6 +239,8 @@ Using this application, each pair of the nodes exchanged 30 MB files over the ne
 
 Considering the experiment was executed on a virtual machine, this is a fairly large number of nodes, and a non-virtualized instance of Linux is expected to be able to run an even larger amount of nodes in parallel.
 
+Currently, the Python application used in the experiment is being developed into an implementation of Chord.
+
 \begin{figure}
 \begin{center}
   \includegraphics[width=11cm]{cpu_nodes.png}
@@ -253,7 +252,23 @@ Considering the experiment was executed on a virtual machine, this is a fairly l
 
 \section{Future Plans}
 
-The current goal of the project is to finish implementing Chord, DHash and the FUSE interface to the filesystem. At that point the filesystem will be in the state where the Andrew benchmark can be executed on it, thus making it possible to compare the speed of the filesystem to other filesystems. This will make it clearer as to how well it scales when nodes are added/removed, and what its most significant short-comings are, in regards to other similar filesystems.
+\subsection{Design}
+As was mentioned in the project overview, some of the issues with the file-system design have not yet been addressed. 
+
+First of all, there is still no clear plan on how to ensure data durability, as many nodes in the network will often go offline. The current plan is to rely on data redundancy and store file replicas on a number of nodes in the Chord ring after the successor of the node which was returned by the query. 
+This would improve file downloading speed when querying the network for a specific file, as the DHT will be able to measure the latency to each of the nodes carrying the replica, and pick the fastest node for downloading.
+It should also be noted that the number of nodes that should carry the replicas has not yet been determined, and a number of experiments will need to be executed to find a suitable value. These experiments have also not yet been designed.
+
+Secondly QUORUMS
+
+Next, no decision has yet been made on how the filesystem will deal with free space limits on machines running the nodes. Ideally, filesystem users should be asked how much space they want to assign to the filesystem, and the files stored on their drives should be prioritized, depending on whether the user owns the file, or whether it's a commonly accessed file. The files with high priority could then be maintained on the user's drive, while files with low priority could be overwritten if a request from the DHT is routed to the user's node. 
+
+Finally, distributed peer-to-peer filesystem literature still needs to be consulted regarding the presence of malicious nodes in the network. 
+
+\subsection{Implementation}
+
+The current goal of the project is to finish implementing a suitable Chord prototype. Once that is done, DHash and the FUSE interface to the filesystem will need to be implemented. At that point the filesystem will be in the state where the Andrew benchmark can be executed on it, thus making it possible to compare the speed of the filesystem to other filesystems. This will make it clearer as to how well it scales when nodes are added/removed, and what its most significant short-comings are, in regards to other similar filesystems.
+
 An overview of the workplan is available in figure~\ref{milestones}.
 
 \begin{figure}
