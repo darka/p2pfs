@@ -67,7 +67,15 @@ It must be noted that the design of a few key parts of the project has not yet b
 
 \subsection{Architecture}
 
-This distributed peer-to-peer filesystem uses a layered architecture.
+This distributed peer-to-peer filesystem uses a layered architecture (Figure~\ref{layeredarch}).
+
+\begin{figure}
+\begin{center}
+  \includegraphics[width=11cm]{archgraph.png}
+\end{center}
+\caption{Distributed peer-to-peer filesystem architecture}
+\label{layeredarch}
+\end{figure}  
 
 At the lowest level, the TCP protocol \cite{tcp} will be used for communication among the nodes participating in the peer-to-peer network. TCP was chosen due to its reliable stream delivery service. The very low level details of using the protocol will, however, not be presented in this report.
 
@@ -164,9 +172,9 @@ The symmetric key mechanism will ensure that the user of the current node cannot
 
 This hybrid approach using both symmetric and asymmetric algorithms is necessary to ensure good performance, as asymmetric key algorithms are much more computationally expensive than symmetric key algorithms.
 
-\section{Frontend}
+\subsection{Frontend}
 
-\subsection{FUSE}
+\subsubsection{FUSE}
 The front-end of the filesystem will be based on FUSE, which allows implementing a filesystem as a user space program \cite{fuse}. This would bypass the operating system kernel, leading to greater portability, as FUSE is available for Linux, FreeBSD, NetBSD, OpenSolaris and Mac OS X. FUSE is suitable for long-term projects, as it is well-maintained, and is an official component of the Linux kernel.
 
 Implementing a virtual filesystem using FUSE requires defining a number of operations, which can be summarized as:
@@ -178,6 +186,12 @@ Implementing a virtual filesystem using FUSE requires defining a number of opera
 \item renaming files and directories.
 \end{enumerate}
 These operations will all be implemented on top of the interface provided by the DHT, and the Index File containing the metadata database.
+
+\subsection{Release}
+
+As the goal of the project is to produce an implementation of a distributed peer-to-peer filesystem targeting the real world, a prototype of the system described will be made available as an open source project under the GPL \cite{gpl} license. As FUSE will be used to implement the frontend of the file system, the implementation is expected to run on any Linux-based operating system, as well as Mac OS X.
+
+The project will be published on a GitHub \cite{github} repository, and open to contributions from the open source community.
 
 \section{Evaluation}
 
@@ -191,7 +205,7 @@ The evaluation testbed and methods were chosen after a careful assessment of a n
 \end{enumerate}
 
 \subsubsection{ns-3}
-The first method considered, was to target ns-3 for the test bed environment, as it has previously been used for this purpose when testing the Infinit filesystem. This method was attempted at first, but it soon became evident that it has a drawback: the filesystem implementation used for simulation would differ too much from the implementation targeting the real world. %This was the case for the Infinit project, as the implementation used in the simulated environment produced  
+The first method considered, was to target ns-3 for the test bed environment, as it has previously been used for this purpose when testing the Infinit filesystem \cite{towards}. This method was attempted at first, but it soon became evident that it has a drawback: the filesystem implementation used for simulation would differ too much from the implementation targeting the real world. %This was the case for the Infinit project, as the implementation used in the simulated environment produced  
 
 % TODO: explain how ns3 could be used to do this
 
@@ -207,7 +221,7 @@ Nevertheless, some of the benchmarks will require up to 10000 nodes at a time. E
 
 \subsubsection{Andrew benchmark}
 
-Although the most common benchmark used to test distributed peer-to-peer file systems, the Andrew benchmark, has received a lot of criticism due to the workload not being realistic, and due to few I/O operations leading to a lack of meaningful results, it is still considered the standard benchmark for filesystem performance \cite{kernelb}. Designing a superior benchmark is out of scope of this project, and would in fact prevent any attempt to compare this file system with other file systems, thus it was decided to use the Andrew benchmark.
+Although the most common benchmark used to test distributed peer-to-peer file systems, the Andrew benchmark \cite{andrew}, has received a lot of criticism due to the workload not being realistic, and due to few I/O operations leading to a lack of meaningful results, it is still considered the standard benchmark for filesystem performance \cite{kernelb}. Designing a superior benchmark is out of scope of this project, and would in fact prevent any attempt to compare this file system with other file systems, thus the decision was made to use the Andrew benchmark.
 
 The Andrew benchmark \cite{andrewscale}, consists of:
 \begin{enumerate}
@@ -221,8 +235,6 @@ The Andrew benchmark \cite{andrewscale}, consists of:
 In filesystem evaluation, these steps are usually executed in the directory hierarchy of the source code of a large open source project, such as the OpenSSL library or the Linux kernel. As this filesystem will be accessible using FUSE, to execute the benchmark, the OpenSSL-1.0.0 library source code will be placed on a mount point of the filesystem. OpenSSL is a large-scale open source project, consisting of approximately 1100 source files, and around 700 object files are generated during compilation. Using this specific open source project for the directory hierarchy will allow for direct comparison with Infinit \cite{towards}.
 
 In order to produce realistic results that could be compared to other filesystems, a network composed of 16 nodes (the standard first choice number in distributed filesystem evaluations) located in the same LAN will be setup, and the Andrew benchmark will then be executed on the filesystem. The time required to execute each of the 5 steps of the benchmark will be noted, and compared against Infinit, Pastis, Ivy and possibly other distributed filesystems.
-
-%how will you compare exactly?
 
 The benchmark will then be executed with a gradually increasing amount of nodes: 50, 100, 500, 1000, 5000, 10000. The times obtained will again be compared against the results presented in the evaluation of the previously mentioned three filesystems.
 
@@ -475,16 +487,11 @@ distributed file systems. In ITCC ’05: Proceedings of the
 International Conference on Information Technology: Coding
 and Computing (ITCC’05) - Volume II, pages 205–213,
 Washington, DC, USA, 2005. IEEE Computer Society.
-\bibitem{dhash}
-M. Leslie.
-Reliable Data Storage in Distributed Hash Tables. Oxford University. 2005.
 \bibitem{versioning}
 D. K. Gifford. Weighted Voting for Replicated 
 Data. In Proceedings of the Seventh ACM 
 Symposium on Operating Systems Principles, 
 pages 159-159, December 1979
-\bibitem{twofishprod}
-Bruce Schneier. Products that use Twofish. http://www.schneier.com/twofish-products.html
 \bibitem{andrew}
 J. H. Howard. An Overview of the Andrew File System.
 In Proceedings of the Winter USENIX Technical Confer-
