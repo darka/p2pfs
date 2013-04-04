@@ -64,20 +64,26 @@ It must be noted that the design of a few key parts of the project has not yet b
 
 \subsection{Architecture}
 
-This distributed peer-to-peer filesystem uses a layered architecture. At the lowest level is the Chord protocol and algorithm for mapping keys to nodes. On top of Chord sits an implementation of a peer-to-peer distributed hash table (DHT). This DHT maintains a data cache containing the data that has most recently been used by this particular node, as well as the data that other nodes in the network wish to store on this particular node. On top of the DHT and the data cache sits an interface to the filesystem, provided by the FUSE library, allowing the filesystem to be mounted in userspace on any machine running Linux.
+This distributed peer-to-peer filesystem uses a layered architecture. At the lowest level, TCP is used for communication among nodes. On top of it, the Chord protocol and algorithm for is used for mapping keys to nodes. On top of Chord sits an implementation of a peer-to-peer distributed hash table (DHT). This DHT maintains a data cache containing the data that has most recently been used by this particular node, as well as the data that other nodes in the network wish to store on this particular node. On top of the DHT and the data cache sits an interface to the filesystem, provided by the FUSE library, allowing the filesystem to be mounted in userspace on any machine running Linux. The further sections describe each layer in-depth.
 
+% add graphics?
+
+\subsection{Networking}
+
+At the very bottom level of the filesystem, the TCP network protocol will be used to communicate among nodes.
+
+% TODO:finish this!!!
 \subsection{Key-Based Routing}
 
-The lowest level of the distributed filesystem will be built on a key-based routing protocol, Chord. The purpose of this level is, given a key and a message, to route the message to the node with an identifier closest to the key. In our case, the key is the SHA-1 hash of the file path, and the identifier is the SHA-1 hash of the IP address of the node. The distance between the node's identifier and the key of the message is determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
+The lowest level of the distributed filesystem will be built on a key-based routing (KBR) protocol, Chord \cite{chord}. The purpose of a KBR protocol is, given a key and a message, to route the message to the node with an identifier closest to the key.
+
+A KBR protocol can route a message with any key, and the definition of a key is imposed by the service using the KBR protocol. In our case, the key is the SHA-1 hash of the file path, and the node identifier is the SHA-1 hash of the IP address of the node. In order to be able to route the message to the closest node, the distance between keys and identifiers has to be defined. The distance between the node's identifier and the key of the message is determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
 
 Chord can be imagined as a network of nodes connected in a ring, where each node is aware of its neighbours: its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. The value of a key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
 
-Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer filesystem \cite{chord}.
+Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer filesystem.
 
-
-% what are the main reasons to use chord instead of other KBRs?
-
-%(how does chord scale?)
+This report will not go into detailed discussion about the working of the Chord protocol, which is described in \cite{chord}. The reason to use Chord is that given a file path, it provides a facility to lookup the node, which should store the file.
 
 \subsection{Distributed Hash Table}
 
