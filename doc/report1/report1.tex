@@ -86,9 +86,15 @@ Nodes maintain a routing table that accelerates lookups. In a system of $N$ node
 
 This report will not go into detailed discussion about the working of the Chord protocol, which is described in \cite{chord}. The reason to use Chord is that given a file path, it provides a facility to lookup the node, which should store the file.
 
+\subsection{File Cache}
+
+As Chord will map certain files to certain nodes, each node must have a place to store those files. This will be implemented as a directory on the node's machine, with each file in the directory carrying the name of the hash of its file path. 
+
 \subsection{Distributed Hash Table}
 
-On top of this lowest level, sits the DHT (distributed hash table). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The canonical DHT for the Chord protocol is the CFS DHash, which the following implementation will be based on. 
+On top of Chord and the file cache, sits the distributed hash table (DHT). Like a hash table, a DHT provides a mapping from keys to values. It allows inserting a value with a certain key, and allows the value to be retrieved, by providing the key that was used to insert it. As was mentioned, in our case the key is the hash of the file path in the file system, and the value is the contents of the file.
+
+The DHT operates on a network of nodes, and uses the key-based routing protocol to determine the sought node. The canonical DHT for the Chord protocol is the CFS DHash, which the following implementation will be based on. 
 
 \subsubsection{Operations}
 The DHT will provide an interface supporting the following operations:
@@ -101,20 +107,17 @@ The DHT will use Chord to determine which node the key value pair should be stor
 
 \item retrieve(key)
 
-Again, the DHT will use Chord to determine the node carrying the value given by the key. As $k$ number of nodes following that node store a replica of the requested value, the latency to each of them will be measured, and the fastest node will be picked for downloading.
+The DHT will first check whether the client itself currently has an object with the key in its file cache. In the case that it does, the DHT will return a file descriptor of that file.
+In the case that it does not, the DHT will use Chord to determine the node carrying the value given by the key. As $k$ number of nodes following that node store a replica of the requested value, the latency to each of them will be measured, and the fastest node will be picked for downloading.
+Once the file is downloaded to the client's cache, a file descriptor to the file will be returned.
+% you need to extend this, it is not clear
 
 \item delete(key)
 
-Deletion will be implemented simply by deleting the file path from the user's file record (which will be discussed further). To an extent, this also guards against malicious injections of large amounts of data \cite{cfs}, as such data will be gradually deleted.
+Deletion will be implemented simply by deleting the file path from the user's index file (which will be discussed further). To an extent, this also guards against malicious injections of large amounts of data \cite{cfs}, as such data will be gradually deleted.
 \end{itemize}
-%TODO: address caching
 
 The filesystem may be deployed on storage drives of varying size, including ones that provide less space than some of the files stored on the world-wide filesystem. 
-
-\subsection{}
-%TODO: describe how CFS does this
-
-\subsubsection{Storage}
 
 \subsection{Versioning}
 Not all copies of the file currently in the network are going to be up-to-date. 
