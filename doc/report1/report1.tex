@@ -16,8 +16,9 @@
 
 \begin{abstract}
 Although the popularity of services similar to DropBox and Google Drive is a good basis to believe that 
-users find such cloud storage file hosting services useful, all of these services depend on third party vendors. Current research on distributed peer-to-peer filesystems shows that building a service of similar quality but without dependence on any single vendor is possible.
+users find such cloud storage file hosting services useful, all of these services depend on third party vendors. 
 
+Current research on distributed peer-to-peer filesystems shows that building a service of similar quality but without dependence on any single vendor is possible.  
 In fact, one of the main identified problems in this field is the lack of an implementation of a distributed peer-to-peer filesystem that could be deployed in such real world situations. 
 
 This project attempts to implement such a system,
@@ -42,9 +43,9 @@ Even in the cases where the experiments were executed without a simulator \cite{
 
 The purpose of this MInf dissertation is to design and build a Distributed Peer-to-peer File System, capable of performing similar function to the proprietary services such as DropBox \cite{dropbox}, but without depending on any specific vendor, so that the contents of the person's private folder are encrypted and then distributed among other users of the system. The implementation will be open source, and make use of efficient, well-tested algorithms and open source libraries, and will be provided in an easy to install package, so that users can easily deploy it on their machines. 
 
-The availability of such an easy to deploy prototype will allow for executing experiments on a network deployed world-wide, addressing the problem of a lack of real world performance analyses and hopefully stimulating further research.
+The availability of such an easy to deploy prototype will allow for executing experiments on a network deployed world-wide, addressing the problem of a lack of an implementation suitable for real world performance analyses, and hopefully stimulate further research.
 
-Although the goal of the project is to produce an implementation targeting the real world, an environment for testing the prototype must still exist. Instead of using a network simulator, the goal is to use a light-weight virtualisation solution to run nodes of the system. This will allow for comparing this filesystem with other peer-to-peer distributed filesystems, without requiring the use of a full fledged network simulator.
+Although the goal of the project is to produce an implementation targeting the real world, an environment for testing the prototype must still exist. Instead of using a network simulator, the goal is to use a light-weight virtualisation solution to run all of the nodes in the network. This will allow for comparing this filesystem with other peer-to-peer distributed filesystems, without requiring the use of a full fledged network simulator.
 
 % Approach
 % Unaddressed problems
@@ -69,12 +70,12 @@ At the lowest level, the TCP protocol will be used for communication among the n
 
 On top of the TCP protocol, the Chord protocol and algorithm will be used for mapping files to nodes that should store the particular file. This will be further explained in the Key-Based Routing section.
 
-On top of Chord an implementation of a peer-to-peer distributed hash table will be provided. Alongside Chord, this DHT will maintain a data cache containing the files that have most recently been used, as well as the files that other nodes in the network will store on this particular node. 
+On top of Chord an implementation of a peer-to-peer distributed hash table will be provided. Alongside Chord, this DHT will maintain a data cache containing the client's files, as well as files that other nodes in the network want to store on this particular node. 
 
 A virtual filesystem will then provide an interface to the DHT and the data cache using the FUSE library, allowing the filesystem to be mounted in userspace on any machine running Linux. 
 
 To enforce a certain degree of security, all data stored on this filesystem will be encrypted. 
-A first time user of the filesystem will have to generate both an AES key for file content encryption, a RSA public/private key pair for authentication, and to decide how much space to allocate to the filesystem.
+A first time user of the filesystem will have to generate both an AES key for file content encryption, and a RSA public/private key pair for authentication
 
 An index file, containing a list of all files that belong to the user will also be encrypted using AES, and stored in the P2P filesystem under the user's public RSA key. This will be explained in the Index File section.
 
@@ -90,11 +91,12 @@ The lowest level of the distributed filesystem will be built on a key-based rout
 
 A KBR protocol can route a message with any key, and the definition of a key is imposed by the service using the KBR protocol. In our case, the key will be the SHA-1 hash of the file path, and the node identifier will be the SHA-1 hash of the IP address of the node. In order to be able to route the message to the closest node, the distance between keys and identifiers has to be defined. The distance between the node's identifier and the key of the message will be determined by taking the difference between them. %(talk about chord's routing algorithm like in CFS paper)
 
+This report will not go into a detailed discussion about the workings of the Chord protocol, which is described in \cite{chord}, but a brief description is provided.
 Chord can be visualized as a network of nodes connected in a ring, where each node is aware of its neighbours: its successor (the next node in clockwise direction) and its predecessor (next node in counter-clockwise direction). Consistent hashing is used to assign keys to nodes, which balances the load on the network. The value of a key-value pair is assigned to the first node that has an identifier equal to the key, or an identifier that follows the key. 
 
 Nodes maintain a routing table that accelerates lookups. In a system of $N$ nodes, a lookup can be resolved using $O(log N)$ messages to other nodes, suggesting high performance, suitable for a peer-to-peer filesystem.
 
-This report will not go into detailed discussion about the workings of the Chord protocol, which is described in \cite{chord}. The main facility of Chord used by this distributed file system is the mechanism to lookup the node which should store the file, given the hash of the path of the file.
+The main facility of Chord used by this distributed file system is the mechanism to lookup the node which should store the file, given the hash of the path of the file.
 
 \subsection{Data Cache}
 
@@ -112,7 +114,7 @@ The DHT will provide an interface supporting the following operations:
 \begin{itemize}
 \item insert(key, value)
 
-The DHT will use Chord to determine which node the key value pair should be stored on. To ensure data durability in the network, replicas of the value will need to be stored on a number of nodes after the successor of the node presented by Chord. This will be addressed in the future.
+The DHT will use Chord to determine which node the key value pair should be stored on. To ensure data durability in the network, replicas of the value will need to be stored on a number of nodes after the successor of the node presented by Chord (see: Future Plans).
 
 \item retrieve(key)
 
@@ -122,7 +124,7 @@ Once the file is downloaded to the client's data cache, an object descriptor to 
 
 \end{itemize}
 
-The filesystem may be deployed on storage drives of varying size, including ones that provide less space than some of the files stored on the world-wide filesystem. 
+The filesystem may be deployed on storage drives of varying size, including ones that provide less space than some of the files stored on the world-wide filesystem. Addressing this issue is part of Future Plans.
 
 \subsection{Index File}
 
@@ -142,22 +144,15 @@ Whenever a user creates a new file (or a different filesystem object), a record 
 Instead of using the hash of the file path as the key when storing the index file in the P2P network, the public key of the user's RSA key pair will be used for the index file instead. This will allow the user's client to retrieve the index file as long as the user maintains possession of the generated RSA key pair. As the index file will contain paths to all of the user's files, the client will then be able to retrieve them by simply taking the SHA-1 hash of the file path, and using the DHT to query the network.
 
 
-\subsection{Versioning}
-Not all copies of the file currently in the network are going to be up-to-date. 
-
-To ensure that the user always receives the most recent copy, when performing a lookup, a weighted voting scheme is going to be introduced. The replicas will be assigned a version number, and each replica of a file will be assigned a certain number of votes. Whenever the file is accessed, or written to, a certain number of $r$ votes to read a file, and a certain number of $w$ votes to write a file will be collected, such that $r + w$ is more than the total number of votes assigned to file. 
-
-This guarantees that any lookup will always retrieve the most recent version of the file \cite{versioning}.
-
 \subsection{Security}
 
-The prototype implementation will not have a sophisticated access control system. A simple mechanism based on a hybrid cryptosystem approach will be provided instead.
+The prototype implementation will not have a sophisticated access control system. As was briefly mentioned in the Architecture section, a simple mechanism based on a hybrid cryptosystem approach will be provided instead.
 
 Each user of the filesystem will have to generate an AES key for encrypting own data, as well as an RSA key pair for authentication.  
 Every user will have a copy of the public keys of all users whose files are stored on this specific user's computer.
 
 The asymmetric key encryption mechanism will ensure that integrity is maintained. If a node received a request to update a file currently stored on the node's machine, the node would use the public key associated with that file to construct a challenge, and send it to the requesting node, awaiting a response.  
-If the requesting node provided the correct response, the update would be executed. Same applies to download requests.
+If the requesting node provided the correct response, the update would be executed. 
 
 The symmetric key mechanism will ensure that the user of the current node cannot read the contents of files that belong to other users of the system, as the current user will only posses own AES key.
 
@@ -176,6 +171,7 @@ Implementing a virtual filesystem using FUSE requires defining a number of opera
 \item creating and deleting symbolic links;
 \item renaming files and directories.
 \end{enumerate}
+These operations will all be implemented on top of the interface provided by the DHT, and the Index File containing the metadata database.
 
 \section{Evaluation}
 
@@ -205,7 +201,8 @@ Nevertheless, some of the benchmarks will require up to 10000 nodes at a time. E
 
 \subsubsection{Andrew benchmark}
 
-Although the most common benchmark used to test distributed peer-to-peer file systems, the Andrew benchmark, has received a lot of criticism due to the workload not being realistic, and due to few I/O operations leading to a lack of meaningful results, it is still considered the standard benchmark for filesystem performance \cite{kernelb}. Designing a superior benchmark is out of scope of this project, and would in fact prevent any attempt to compare this file system with other file systems.
+Although the most common benchmark used to test distributed peer-to-peer file systems, the Andrew benchmark, has received a lot of criticism due to the workload not being realistic, and due to few I/O operations leading to a lack of meaningful results, it is still considered the standard benchmark for filesystem performance \cite{kernelb}. Designing a superior benchmark is out of scope of this project, and would in fact prevent any attempt to compare this file system with other file systems, thus it was decided to use the Andrew benchmark.
+
 The Andrew benchmark \cite{andrewscale}, consists of:
 \begin{enumerate}
 \item creating a directory hierarchy;
@@ -235,7 +232,7 @@ This led to a search for a different testing environment, concluding with the ch
 
 To test the emulation testbed and determine how many nodes a VirtualBox virtual machine running Ubuntu Linux on an Intel(R) Core(TM) i3 CPU M370 @ 2.40GHz, 2 GB of RAM computer could manage at once, an experiment was setup. 
 A Python application capable of sending and receiving files was implemented using the Twisted networking library.
-Using this application, each pair of the nodes exchanged 30 MB files over the network, and CPU usage was monitored during the exchange, while the number of nodes was gradually increased. The results are visible in figure~\ref{cpu_usage}. Each node was running an instance of a Python process, requiring on average 0.3-0.7\% CPU. As the number of nodes was increased, there was a fairly linear increase in CPU usage, with 2 nodes needing 1.2\% CPU, 10 nodes requiring 6\% CPU, 50 nodes requiring 32\% CPU, 100 nodes taking up $46\%$ CPU and 180 nodes taking up 87\% CPU. Thus the machine is able to support up to 180 LXC containers running at once, as increasing the number of working nodes at this point could start to interfere with other processes running on the system (such as the desktop environment).
+Using this application, each pair of the nodes exchanged 30 MB files over the network, and CPU usage was monitored during the exchange, while the number of nodes was gradually increased. The results are visible in figure~\ref{cpu_usage}. Each node was running an instance of a Python process, requiring on average 0.3-0.7\% CPU. As the number of nodes was increased, there was a fairly linear increase in CPU usage, with 2 nodes needing 1.2\% CPU, 10 nodes requiring 6\% CPU, 50 nodes requiring 32\% CPU, 100 nodes taking up $46\%$ CPU and 180 nodes taking up 87\% CPU. Thus the machine is able to support up to 180 LXC containers running at once, as increasing the number of working nodes at this point could start to interfere with other processes running on the system, such as the desktop environment.
 
 Considering the experiment was executed on a virtual machine, this is a fairly large number of nodes, and a non-virtualized instance of Linux is expected to be able to run an even larger amount of nodes in parallel.
 
@@ -259,15 +256,18 @@ First of all, there is still no clear plan on how to ensure data durability, as 
 This would improve file downloading speed when querying the network for a specific file, as the DHT will be able to measure the latency to each of the nodes carrying the replica, and pick the fastest node for downloading.
 It should also be noted that the number of nodes that should carry the replicas has not yet been determined, and a number of experiments will need to be executed to find a suitable value. These experiments have also not yet been designed.
 
-Secondly QUORUMS
+Secondly, not all copies of the file currently in the network are going to be up-to-date. To ensure that the user always receives the most recent copy, when performing a lookup, a weighted voting scheme will need to be introduced. The replicas will be assigned a version number, and each replica of a file will be assigned a certain number of votes. Whenever the file is accessed, or written to, a certain number of $r$ votes to read a file, and a certain number of $w$ votes to write a file will be collected, such that $r + w$ is more than the total number of votes assigned to file.  
+This mechanism should guarantee that any lookup will always retrieve the most recent version of the file \cite{versioning}, however, the implementation details of the mechanism are not yet finished. 
 
 Next, no decision has yet been made on how the filesystem will deal with free space limits on machines running the nodes. Ideally, filesystem users should be asked how much space they want to assign to the filesystem, and the files stored on their drives should be prioritized, depending on whether the user owns the file, or whether it's a commonly accessed file. The files with high priority could then be maintained on the user's drive, while files with low priority could be overwritten if a request from the DHT is routed to the user's node. 
+
+In addition, the implementation details of the FUSE interface need to be made more concrete, as it is not entirely clear what methods of the DHT interface FUSE operations will map to, and how they will interact with the index file.
 
 Finally, distributed peer-to-peer filesystem literature still needs to be consulted regarding the presence of malicious nodes in the network. 
 
 \subsection{Implementation}
 
-The current goal of the project is to finish implementing a suitable Chord prototype. Once that is done, DHash and the FUSE interface to the filesystem will need to be implemented. At that point the filesystem will be in the state where the Andrew benchmark can be executed on it, thus making it possible to compare the speed of the filesystem to other filesystems. This will make it clearer as to how well it scales when nodes are added/removed, and what its most significant short-comings are, in regards to other similar filesystems.
+On the implementation side, the current goal of the project is to finish implementing a suitable Chord prototype. Once that is done, and the design issues have been addressed, DHash and the FUSE interface to the filesystem will need to be implemented. At that point the filesystem will be in the state where the Andrew benchmark can be executed on it, thus making it possible to compare the speed of the filesystem to other filesystems. This will make it clearer as to how well it scales when nodes are added/removed, and what its most significant short-comings are, in regards to other similar filesystems.
 
 An overview of the workplan is available in figure~\ref{milestones}.
 
