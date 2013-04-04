@@ -106,6 +106,9 @@ The metadata for all files that belong to that particular user will be stored as
   \item directory metadata table;
   \item symbolic link metadata table.
 \end{itemize}
+The contents of these three tables will contain file names, paths and file system attributes. This data will be used by FUSE in order to answer queries about the attributes of all file system objects. The design of these tables has not been finalized and is part of future work.
+
+Whenever a user creates a new file (or a different filesystem object), a record of the object will be inserted into the database, and likewise the record will be deleted when the user deletes that particular file.
 
 Instead of using the hash of the file path as the key when storing the index file in the P2P network, the public key of the user's RSA key pair will be used for the index file instead. This will allow the user's client to retrieve the index file as long as the user maintains possession of the generated RSA key pair. As the index file will contain paths to all of the user's files, the client will then be able to retrieve them by simply taking the SHA-1 hash of the file path, and using the DHT to query the network.
 
@@ -164,16 +167,17 @@ This hybrid approach using both symmetric and asymmetric algorithms is necessary
 
 \section{Frontend}
 
-\subsection{Index}
-The list of files stored on the filesystem by the user, will be governed by an index. As in CFS, this index will be stored under the user's RSA public key in the distributed hash table. The current plan is to maintain the index as a plain text file, although this is obviously inadequate for filesystems containing large numbers of files. A more sophisticated approach, involving a database, will be presented later. 
-
-Whenever a user creates a new file, a record of the file will be added to the index, and likewise the file's record will be deleted when the user deletes that particular file.
-
-To connect to the system, a user must first obtain an IP address of a node already in the system.
-
 \subsection{FUSE}
 The front-end of the filesystem will be based on FUSE, which allows implementing a filesystem as a user space program \cite{fuse}. This would bypass the operating system kernel, leading to greater portability, as FUSE is available for Linux, FreeBSD, NetBSD, OpenSolaris and Mac OS X. FUSE is suitable for long-term projects, as it is well-maintained, and is an official component of the Linux kernel.
 
+Implementing a virtual filesystem using FUSE requires defining a number of operations, which can be summarized as:
+\begin{enumerate}
+\item reading and writing files;
+\item reading and changing file attributes;
+\item creating and deleting directories;
+\item creating and deleting symbolic links;
+\item renaming files and directories.
+\end{enumerate}
 
 \section{Evaluation}
 
