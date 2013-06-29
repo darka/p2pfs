@@ -6,32 +6,60 @@ from twisted.protocols.basic import NetstringReceiver
 import argparse
 import md5
 import collections
+import math
 
-FILENAME = "to_send.test"
 
 def Hash(s):
   return int(long(md5.new(s).hexdigest(), 16) % 160)
+
+
+class ChordServerProtocol(NetstringReceiver):
+
+  def connectionMade(self):
+    print("Someone connected.")
+
+  def stringReceived(self, request):
+    print("Received a request: {}.".format(request))
+
+    if '.' not in request: # bad request
+        self.transport.loseConnection()
+        return
+
+    req, arg = request.split('.', 1)
+
+    d = self.factory.HandleRequest(req)
+    d.addCallback(lambda ret: self.sendString(str(ret)))
+    d.addCallback(self.transport.loseConnection)
+    d.callback(int(arg))
+
+
+class ChordServerFactory(ServerFactory):
+
+  protocol = ChordServerProtocol
+
+  def __init__(self, service):
+    self.service = service
+
+  def HandleRequest(self, req):
+    if req == 'retrieve_value':
+      d = Deferred()
+      d.addCallback(self.service.GetValue)
+      return d
+
 
 class ChordClientProtocol(NetstringReceiver):
 
   value = ''
 
   def connectionMade(self):
+    print("Asking host for key: {}.".format(self.factory.key))
     self.sendString("retrieve_value" + '.' + self.factory.key)
 
-  def dataReceived(self, data):
-    self.value += data 
+  def stringReceived(self, data):
+    self.value += data
 
   def connectionLost(self, reason):
     self.factory.ValueReceived(self.value)
-
-
-class ChordServerFactory(ServerFactory):
-
-    protocol = Protocol
-
-    def __init__(self, service):
-        self.service = service
 
 
 class ChordClientFactory(ClientFactory):
@@ -52,7 +80,7 @@ Address = collections.namedtuple('Address', ['host', 'port'])
 
 
 def HashAddress(address):
-  return hash(str(address.host) + str(address.port))
+  return Hash(str(address.host) + str(address.port))
   
 
 class ChordService(object):
@@ -61,16 +89,17 @@ class ChordService(object):
     self.data = {}
     self.routing_table = {}
 
-  def AddToRoutingTable(address):
+  def AddToRoutingTable(self, address):
     h = HashAddress(address)
     self.routing_table[h] = address
-    print("Added {} to routing table.".format(address))
+    print("Added {} to routing table (hash: {}).".format(address, h))
 
   def StoreValue(self, key, value):
-    self.data[key] = value
+    self.data[int(key)] = value
     print("Stored key: {}, value: {}.".format(key, value))
     
   def GetValue(self, key):
+    print('Retrieving value with key: {}.'.format(key))
     # check if value is among the values you hold
     if key in self.data:
       return succeed(self.data[key])
@@ -78,9 +107,13 @@ class ChordService(object):
     # if it is not, look at your routing table
     deferred = Deferred()
     factory = ChordClientFactory(key, deferred)
-    address = routing_table[int(floor(log(key, 2)))]
+    #address_hash = int(math.floor(math.log(int(key), 2)))
+    #print("address hash: {}".format(address_hash)
+    #address = self.routing_table[address_hash]
+    address = self.routing_table[int(key)]
     reactor.connectTCP(address.host, address.port, factory)
     return factory.deferred
+
 
 def main():
   parser = argparse.ArgumentParser()
@@ -106,7 +139,7 @@ def main():
     
   if (args.retrieve):
     def EchoValue(value):
-      print('Retrieved value: {}'.format(value))
+      print('Retrieved value: {}.'.format(value))
     d = service.GetValue(args.retrieve)
     d.addCallback(EchoValue)
     
