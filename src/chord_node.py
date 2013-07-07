@@ -1,5 +1,6 @@
 from twisted.protocols.basic import LineReceiver
 from twisted.internet import reactor, protocol
+from twisted.internet.address import IPv4Address
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import Protocol, ClientFactory, ServerFactory
 from twisted.protocols.basic import NetstringReceiver
@@ -44,10 +45,12 @@ class ChordServerFactory(ServerFactory):
     self.service = service
 
   def HandleRequest(self, req):
+    d = Deferred()
     if req == 'retrieve_value':
-      d = Deferred()
       d.addCallback(self.service.GetValue)
-      return d
+    elif req == 'who_am_i':
+      d.addCallback(self.service.GetValue)
+    return d
 
 
 class ChordClientProtocol(NetstringReceiver):
@@ -62,7 +65,7 @@ class ChordClientProtocol(NetstringReceiver):
     self.factory.ValueReceived(data)
 
   def connectionLost(self, reason):
-    pass
+    print('Connection lost.')
 
 
 class ChordClientFactory(ClientFactory):
@@ -79,9 +82,6 @@ class ChordClientFactory(ClientFactory):
       d.callback(value)
 
 
-Address = collections.namedtuple('Address', ['host', 'port'])
-
-
 def HashAddress(address):
   return Hash(str(address.host) + str(address.port))
   
@@ -89,6 +89,7 @@ def HashAddress(address):
 class ChordService(object):
   
   def __init__(self):
+    self.me = None
     self.data = {}
     self.routing_table = {}
 
@@ -132,7 +133,7 @@ def main():
 
   if (args.connect):
     dst = args.connect.split(':')
-    service.AddToRoutingTable(Address(dst[0], int(dst[1])))
+    service.AddToRoutingTable(IPv4Address('TCP', dst[0], int(dst[1])))
 
   if (args.store):
     key, value = args.store.split(':')
