@@ -9,6 +9,9 @@ import collections
 import math
 
 
+def Echo(s):
+  print(s)
+
 def Hash(s):
   return int(long(md5.new(s).hexdigest(), 16) % 160)
 
@@ -29,7 +32,7 @@ class ChordServerProtocol(NetstringReceiver):
 
     d = self.factory.HandleRequest(req)
     d.addCallback(lambda ret: self.sendString(str(ret)))
-    d.addCallback(self.transport.loseConnection)
+    d.addCallback(lambda _: self.transport.loseConnection)
     d.callback(int(arg))
 
 
@@ -56,10 +59,10 @@ class ChordClientProtocol(NetstringReceiver):
     self.sendString("retrieve_value" + '.' + self.factory.key)
 
   def stringReceived(self, data):
-    self.value += data
+    self.factory.ValueReceived(data)
 
   def connectionLost(self, reason):
-    self.factory.ValueReceived(self.value)
+    pass
 
 
 class ChordClientFactory(ClientFactory):
@@ -127,11 +130,9 @@ def main():
 
   service = ChordService()
 
-  f = ChordServerFactory(service)
-  reactor.listenTCP(port, f)
   if (args.connect):
-    host, port = args.connect.split(':')
-    service.AddToRoutingTable(Address(host, int(port)))
+    dst = args.connect.split(':')
+    service.AddToRoutingTable(Address(dst[0], int(dst[1])))
 
   if (args.store):
     key, value = args.store.split(':')
@@ -142,6 +143,9 @@ def main():
       print('Retrieved value: {}.'.format(value))
     d = service.GetValue(args.retrieve)
     d.addCallback(EchoValue)
+
+  f = ChordServerFactory(service)
+  reactor.listenTCP(port, f)
     
   reactor.run()
 
