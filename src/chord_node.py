@@ -1,5 +1,6 @@
 from twisted.protocols.basic import LineReceiver
 from twisted.internet import reactor, protocol
+from twisted.internet.address import IPv4Address
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import Protocol, ClientFactory, ServerFactory
 from twisted.protocols.basic import NetstringReceiver
@@ -9,11 +10,13 @@ import collections
 import math
 
 
+M = 10
+
 def Echo(s):
   print(s)
 
 def Hash(s):
-  return int(long(md5.new(s).hexdigest(), 16) % 160)
+  return int(long(md5.new(s).hexdigest(), 16) % M)
 
 
 class ChordServerProtocol(NetstringReceiver):
@@ -79,9 +82,6 @@ class ChordClientFactory(ClientFactory):
       d.callback(value)
 
 
-Address = collections.namedtuple('Address', ['host', 'port'])
-
-
 def HashAddress(address):
   return Hash(str(address.host) + str(address.port))
   
@@ -132,7 +132,7 @@ def main():
 
   if (args.connect):
     dst = args.connect.split(':')
-    service.AddToRoutingTable(Address(dst[0], int(dst[1])))
+    service.AddToRoutingTable(IPv4Address('TCP', dst[0], int(dst[1])))
 
   if (args.store):
     key, value = args.store.split(':')
