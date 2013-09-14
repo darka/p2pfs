@@ -3,7 +3,7 @@ from twisted.internet import reactor, protocol
 from twisted.internet.address import IPv4Address
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import Protocol, ClientFactory, ServerFactory
-from twisted.protocols.basic import NetstringReceiver
+from twisted.protocols import amp
 import argparse
 import md5
 import collections
@@ -53,20 +53,8 @@ class ChordServerFactory(ServerFactory):
       return d
 
 
-class ChordClientProtocol(NetstringReceiver):
-
-  value = ''
-
-  def connectionMade(self):
-    print("Asking host for key: {}.".format(self.factory.key))
-    self.sendString("retrieve_value" + '.' + self.factory.key)
-
-  def stringReceived(self, data):
-    self.factory.ValueReceived(data)
-
-  def connectionLost(self, reason):
-    pass
-
+class ChordClientProtocol(amp.AMP):
+  pass
 
 class ChordClientFactory(ClientFactory):
 
@@ -75,11 +63,6 @@ class ChordClientFactory(ClientFactory):
   def __init__(self, key, deferred):
     self.key = key
     self.deferred = deferred
-
-  def ValueReceived(self, value):
-    if self.deferred is not None:
-      d, self.deferred = self.deferred, None
-      d.callback(value)
 
 
 def HashAddress(address):
