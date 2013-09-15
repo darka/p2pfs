@@ -168,14 +168,14 @@ def main():
     def perform_keyword_search():
         print("performing search...")
         for keyword in args.search_keywords:
-          df = file_service.search(keyword)
-          def printKeyword(result):
-              print("keyword: {}".format(keyword))
-              print("  {}".format(result))
-          df.addCallback(printKeyword)
+            df = file_service.search(keyword)
+            def printKeyword(result):
+                print("keyword: {}".format(keyword))
+                print("  {}".format(result))
+            df.addCallback(printKeyword)
 
     if args.search_keywords:
-      task.deferLater(twisted.internet.reactor, 10, perform_keyword_search)
+        task.deferLater(twisted.internet.reactor, 10, perform_keyword_search)
     twisted.internet.reactor.run()
 
 
