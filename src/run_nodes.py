@@ -12,13 +12,13 @@ data = {12:100, 17:200}
 def main():
   # start first node
   procs = []
-  command = ['python', 'chord_node.py', '--port', str(port_range[0])]
+  command = ['python', 'share_node.py', '--port', str(port_range[0])]
   print(' '.join(command))
   procs.append(subprocess.Popen(command))
 
   data_items = data.items()
   for port in range(port_range[0]+1, port_range[1]):
-    command = ['python', 'chord_node.py', '--port', str(port)]
+    command = ['python', 'share_node.py', '--port', str(port)]
     command += ['--connect', 'localhost:{}'.format(str(port_range[0]))]
     if len(data_items) > 0:
       item = data_items.pop()

@@ -5,14 +5,66 @@ from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import Protocol, ClientFactory, ServerFactory
 from twisted.protocols.basic import NetstringReceiver
 from twisted.spread import pb
+from twisted.protocols import amp
 import argparse
 import md5
 import collections
 import math
 
 
+M = 10
+
+def Echo(s):
+  print(s)
+
 def Hash(s):
-  return int(long(md5.new(s).hexdigest(), 16) % 160)
+  return int(long(md5.new(s).hexdigest(), 16) % M)
+
+
+class ChordServerProtocol(NetstringReceiver):
+
+  def connectionMade(self):
+    print("Someone connected.")
+
+  def stringReceived(self, request):
+    print("Received a request: {}.".format(request))
+
+    if '.' not in request: # bad request
+        self.transport.loseConnection()
+        return
+
+    req, arg = request.split('.', 1)
+
+    d = self.factory.HandleRequest(req)
+    d.addCallback(lambda ret: self.sendString(str(ret)))
+    d.addCallback(lambda _: self.transport.loseConnection)
+    d.callback(int(arg))
+
+
+class ChordServerFactory(ServerFactory):
+
+  protocol = ChordServerProtocol
+
+  def __init__(self, service):
+    self.service = service
+
+  def HandleRequest(self, req):
+    if req == 'retrieve_value':
+      d = Deferred()
+      d.addCallback(self.service.GetValue)
+      return d
+
+
+class ChordClientProtocol(amp.AMP):
+  pass
+
+class ChordClientFactory(ClientFactory):
+
+  protocol = ChordClientProtocol
+
+  def __init__(self, key, deferred):
+    self.key = key
+    self.deferred = deferred
 
 
 def HashAddress(address):
