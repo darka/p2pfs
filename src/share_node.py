@@ -6,20 +6,34 @@
 #
 
 import argparse
-import os, sys 
+import os
+import sys
+import hashlib
 
-import twisted.internet.reactor
+import entangled.node
+
+from cmd import Cmd
+from twisted.internet import reactor
 from twisted.internet import task
 
 from twisted.internet import defer
 from twisted.internet.protocol import Protocol, ServerFactory, ClientCreator
 
-import hashlib
-
-import entangled.node
 from entangled.kademlia.datastore import SQLiteDataStore
 
 DEST_FILENAME = "downloaded.data"
+
+class CommandProcessor(Cmd):
+    def __init__(self, file_service):
+        self.prompt = ''
+        Cmd.__init__(self)
+        self.file_service = file_service
+
+    def do_EOF(self, line):
+        return True 
+
+    def do_search(self, keywords):
+        reactor.callFromThread(perform_keyword_search, self.file_service, keywords)
 
 class FileServer(Protocol):
     def dataReceived(self, data):
@@ -69,7 +83,7 @@ class FileSharingService():
         self.factory = ServerFactory()
         self.factory.protocol = FileServer
         self.factory.sharePath = '.'
-        twisted.internet.reactor.listenTCP(self.listen_port, self.factory)
+        reactor.listenTCP(self.listen_port, self.factory)
 
     def search(self, keyword):
         return self.node.searchForKeywords(keyword)
@@ -89,7 +103,6 @@ class FileSharingService():
         print 'files: ', len(files)
         def publishNextFile(result=None):
             if len(files) > 0:
-                #twisted.internet.reactor.iterate()
                 filename = files.pop()
                 print '-->',filename
                 df = self.node.publishData(filename, self.node.id)
@@ -117,7 +130,7 @@ class FileSharingService():
             if contact == None:
                 sys.stderr.write("File could not be retrieved.\nThe host that published this file is no longer on-line.\n")
             else:
-                c = ClientCreator(twisted.internet.reactor, FileGetter)
+                c = ClientCreator(reactor, FileGetter)
                 df = c.connectTCP(contact.address, contact.port)
                 return df
         
@@ -126,6 +139,15 @@ class FileSharingService():
         df.addCallback(connectToPeer)
         df.addCallback(getFile)
         
+
+def perform_keyword_search(file_service, keyword):
+    print("performing search...")
+    df = file_service.search(keyword)
+    def printKeyword(result):
+        print("keyword: {}".format(keyword))
+        print("  {}".format(result))
+    df.addCallback(printKeyword)
+
     
 def main():
     parser = argparse.ArgumentParser()
@@ -164,19 +186,11 @@ def main():
         file_service.publishDirectory(directory)
  
     node.joinNetwork(knownNodes)
-
-    def perform_keyword_search():
-        print("performing search...")
-        for keyword in args.search_keywords:
-            df = file_service.search(keyword)
-            def printKeyword(result):
-                print("keyword: {}".format(keyword))
-                print("  {}".format(result))
-            df.addCallback(printKeyword)
-
-    if args.search_keywords:
-        task.deferLater(twisted.internet.reactor, 10, perform_keyword_search)
-    twisted.internet.reactor.run()
+    #if args.search_keywords:
+    #    task.deferLater(reactor, 10, perform_keyword_search)
+    processor = CommandProcessor(file_service)
+    reactor.callInThread(processor.cmdloop)
+    reactor.run()
 
 
 if __name__ == '__main__':
