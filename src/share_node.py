@@ -32,8 +32,11 @@ class CommandProcessor(Cmd):
     def do_EOF(self, line):
         return True 
 
-    def do_search(self, keywords):
-        reactor.callFromThread(perform_keyword_search, self.file_service, keywords)
+    def do_download(self, args):
+        reactor.callFromThread(perform_download, self.file_service, *args.split())
+
+    def do_search(self, keyword):
+        reactor.callFromThread(perform_keyword_search, self.file_service, keyword)
 
 class FileServer(Protocol):
     def dataReceived(self, data):
@@ -53,9 +56,11 @@ class FileGetter(Protocol):
     def connectionMade(self):
         self.buffer = ''
         self.filename = ''
+        self.destination = ''
         
-    def requestFile(self, filename):
+    def requestFile(self, filename, destination):
         self.filename = filename
+        self.destination = destination
         self.transport.write('%s\r\n' % filename)
 
     def dataReceived(self, data):
@@ -66,7 +71,7 @@ class FileGetter(Protocol):
              sys.stderr.write("Error! Connection lost :(\n")
              return
      
-        f = open(DEST_FILENAME, 'w')
+        f = open(self.destination, 'w')
         f.write(self.buffer)
         f.close()
 
@@ -112,20 +117,18 @@ class FileSharingService():
                 outerDf.callback(None)
         publishNextFile()
     
-    def downloadFile(self, path):
-        filename = path
+    def downloadFile(self, filename, destination):
         h = hashlib.sha1()
         h.update(filename)
         key = h.digest()
         
         def getTargetNode(result):
             targetNodeID = result[key]
-            #print targetNodeID
             df = self.node.findContact(targetNodeID)
             return df
         def getFile(protocol):
             if protocol != None:
-                protocol.requestFile(filename)
+                protocol.requestFile(filename, destination)
         def connectToPeer(contact):
             if contact == None:
                 sys.stderr.write("File could not be retrieved.\nThe host that published this file is no longer on-line.\n")
@@ -139,6 +142,11 @@ class FileSharingService():
         df.addCallback(connectToPeer)
         df.addCallback(getFile)
         
+
+def perform_download(file_service, filename, destination):
+    print("downloading {} to {}...".format(filename, destination))
+    file_service.downloadFile(filename, destination)
+
 
 def perform_keyword_search(file_service, keyword):
     print("performing search...")
@@ -155,7 +163,6 @@ def main():
     parser.add_argument('--connect', dest='address', default=None)
     parser.add_argument('--share', dest='shared', default=[], nargs='*')
     parser.add_argument('--dest', dest='destination_folder', default=DEST_FILENAME)
-    parser.add_argument('--search', dest='search_keywords', default=[], nargs='*')
     args = parser.parse_args()
     
     if args.address:
@@ -181,14 +188,17 @@ def main():
     node = entangled.node.EntangledNode(udpPort=args.port, dataStore=dataStore)
     node.invalidKeywords.extend(('mp3', 'png', 'jpg', 'txt', 'ogg'))
     node.keywordSplitters.extend(('-', '!'))
+
     file_service = FileSharingService(node, args.port)
+
     for directory in args.shared:
         file_service.publishDirectory(directory)
  
     node.joinNetwork(knownNodes)
-    #if args.search_keywords:
-    #    task.deferLater(reactor, 10, perform_keyword_search)
+
+    print 'Node running.'
     processor = CommandProcessor(file_service)
+
     reactor.callInThread(processor.cmdloop)
     reactor.run()
 
