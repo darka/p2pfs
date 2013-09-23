@@ -3,7 +3,7 @@ import subprocess
 
 prec = "cont"
 directory = "lxc_config"
-total = 10
+total = 11
 
 def main():
 	for i in xrange(0, total):

@@ -28,8 +28,8 @@ for i in xrange(0, total-1):
 print [a for a in addresses]
 
 current = 0
-shares = { 1 : 'pngs', 
-           2 : 'more_pngs' }
+shares = { 1 : os.path.join(location, 'src', 'pngs'),
+           2 : os.path.join(location, 'src', 'more_pngs') }
 
 def run_subprocess(address, command):
     time.sleep(1)
@@ -75,4 +75,4 @@ def main():
     run_nodes(addresses)
 
 if __name__=='__main__':
-  main()
+    main()

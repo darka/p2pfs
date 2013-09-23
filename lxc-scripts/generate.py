@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import netaddr
 import os
+import virtinst.util
 import copy
 
 default_config = [
@@ -19,7 +20,7 @@ for key, value in default_config:
 
 starting_address = netaddr.IPAddress("192.168.1.10")
 directory = "lxc_config"
-total = 10
+total = 100
 
 def write_config(f, options):
 	for key in (pair[0] for pair in default_config):
@@ -34,6 +35,7 @@ def main():
 		name = "{}{:03d}".format(prec, i)
 		options = default_options.copy()
 		options["lxc.utsname"] = name
+		options["lxc.network.hwaddr"] = virtinst.util.randomMAC().upper()
 		options["lxc.network.ipv4"] = str(current_address) + '/24'
 		current_address += 1
 		f = open(os.path.join(directory, "{}.conf".format(name)), "w")
