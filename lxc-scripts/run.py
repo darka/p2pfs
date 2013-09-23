@@ -14,7 +14,7 @@ keys_location = "/home/ubuntu/p2pfs/src/keys/"
 node_location = os.path.join(location, 'src', 'share_node.py')
 base_command = node_location + " --port 2000"
 
-total = 10
+total = 90
 starting_address = netaddr.IPAddress("192.168.1.10")
 
 new_address = starting_address
@@ -32,7 +32,7 @@ shares = { 1 : os.path.join(location, 'src', 'pngs'),
            2 : os.path.join(location, 'src', 'more_pngs') }
 
 def run_subprocess(address, command):
-    time.sleep(1)
+    time.sleep(0.5)
     command_parts = ['lxc-execute', '-n', address[0], '--', sys.executable] + command.split()
     print 'Running: {}'.format(' '.join(command_parts))
     subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=location)
