@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import netaddr
 import os
 import copy
@@ -33,7 +34,7 @@ def main():
 		name = "{}{:03d}".format(prec, i)
 		options = default_options.copy()
 		options["lxc.utsname"] = name
-		options["lxc.network.ipv4"] = str(current_address)
+		options["lxc.network.ipv4"] = str(current_address) + '/24'
 		current_address += 1
 		f = open(os.path.join(directory, "{}.conf".format(name)), "w")
 		write_config(f, options)
