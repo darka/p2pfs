@@ -21,6 +21,9 @@ from twisted.internet.protocol import Protocol, ServerFactory, ClientCreator
 
 from entangled.kademlia.datastore import SQLiteDataStore
 
+from Crypto.Cipher import PKCS1_OAEP
+from Crypto.PublicKey import RSA
+
 DEST_FILENAME = "downloaded.data"
 
 class CommandProcessor(Cmd):
@@ -159,6 +162,7 @@ def perform_keyword_search(file_service, keyword):
     
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--key', required=True)
     parser.add_argument('--port', required=True, type=int)
     parser.add_argument('--connect', dest='address', default=None)
     parser.add_argument('--share', dest='shared', default=[], nargs='*')
@@ -185,7 +189,14 @@ def main():
     except OSError:
         pass
     dataStore = None#SQLiteDataStore(os.path.expanduser('~')+'/.entangled/fileshare.sqlite')
-    node = entangled.node.EntangledNode(udpPort=args.port, dataStore=dataStore)
+
+    #key = RSA.importKey(open(args.key + '.pub').read())
+
+    sha = hashlib.sha1()
+    sha.update(open(args.key + '.pub').read())
+    node_id = sha.digest()
+
+    node = entangled.node.EntangledNode(id=node_id, udpPort=args.port, dataStore=dataStore)
     node.invalidKeywords.extend(('mp3', 'png', 'jpg', 'txt', 'ogg'))
     node.keywordSplitters.extend(('-', '!'))
 
