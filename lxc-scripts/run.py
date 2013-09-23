@@ -32,7 +32,7 @@ shares = { 1 : os.path.join(location, 'src', 'pngs'),
            2 : os.path.join(location, 'src', 'more_pngs') }
 
 def run_subprocess(address, command):
-    time.sleep(0.5)
+    time.sleep(0.1)
     command_parts = ['lxc-execute', '-n', address[0], '--', sys.executable] + command.split()
     print 'Running: {}'.format(' '.join(command_parts))
     subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=location)
