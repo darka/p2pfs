@@ -18,7 +18,8 @@ default_options = {}
 for key, value in default_config:
 	default_options[key] = value
 
-starting_address = netaddr.IPAddress("192.168.1.10")
+#starting_address = netaddr.IPAddress("192.168.1.10")
+starting_address = netaddr.IPAddress("10.0.2.16")
 directory = "lxc_config"
 total = 100
 
