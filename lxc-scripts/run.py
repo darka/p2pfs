@@ -14,7 +14,11 @@ keys_location = "/home/ubuntu/p2pfs/src/keys/"
 node_location = os.path.join(location, 'src', 'share_node.py')
 base_command = node_location + " --port 2000"
 
-total = 30
+if len(sys.argv) != 2:
+    print("Please specify container count")
+    sys.exit(1)
+total = int(sys.argv[1])
+
 #starting_address = netaddr.IPAddress("192.168.1.10")
 starting_address = netaddr.IPAddress("10.0.2.16")
 
