@@ -26,6 +26,11 @@ from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 
 DEST_FILENAME = "downloaded.data"
+    
+def sha_hash(name):
+    h = hashlib.sha1()
+    h.update(name)
+    return h.digest()
 
 class Logger(object):
     def __init__(self, where=None):
@@ -158,11 +163,10 @@ class FileSharingService():
                 outerDf.callback(None)
 
         publishNextFile()
-    
+
+
     def downloadFile(self, filename, destination):
-        h = hashlib.sha1()
-        h.update(filename)
-        key = h.digest()
+        key = sha_hash(filename)
         
         def getTargetNode(result):
             targetNodeID = result[key]
