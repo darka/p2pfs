@@ -10,7 +10,7 @@ import os
 import sys
 import hashlib
 import sqlite3
-
+import shutil
 import entangled.node
 
 from cmd import Cmd
@@ -19,6 +19,7 @@ from twisted.internet import task
 
 from twisted.internet import defer
 from twisted.internet.protocol import Protocol, ServerFactory, ClientCreator
+from twisted.protocols.basic import LineReceiver
 
 from entangled.kademlia.datastore import SQLiteDataStore
 
@@ -44,6 +45,7 @@ class Logger(object):
 
     def log(self, message):
         self.out.write(message + '\n')
+        self.out.flush()
     
 
 l = Logger()
@@ -65,7 +67,7 @@ class FileDatabase(object):
         except sqlite3.OperationalError:
             l.log('Could not drop table')
         self.execute(
-            '''CREATE TABLE files (date text, pub_key text, path text)''')
+            '''CREATE TABLE files (date text, pub_key text, filename text)''')
 
     def add_file(self, public_key, filename):
         self.execute(
@@ -86,6 +88,35 @@ class CommandProcessor(Cmd):
 
     def do_search(self, keyword):
         reactor.callFromThread(perform_keyword_search, self.file_service, keyword)
+
+class IndexMasterProtocol(LineReceiver):
+    def __init__(self):
+        Protocol.__init__(self)
+        self.setLineMode()
+
+    def lineReceived(self, data):
+        l.log(data)
+        data = data.split('*')
+        self.buffer = ''
+        self.filename = data[0]
+        self.destination = os.path.join('/tmp', self.filename)
+        self.setRawMode()
+
+    def rawDataReceived(self, data):
+        self.buffer += data
+
+    def connectionLost(self, reason):
+        if len(self.buffer) == 0:
+             l.log("Error! Connection lost :(\n")
+             return
+     
+        f = open(self.destination, 'w')
+        f.write(self.buffer)
+        f.close()
+
+#class UploaderProtocol(LineReceiver):
+#    def uploadFile(filename):
+#        self.
 
 class FileServer(Protocol):
     def dataReceived(self, data):
@@ -126,10 +157,11 @@ class FileGetter(Protocol):
 
 
 class FileSharingService():
-    def __init__(self, node, listen_port, file_db):
+    def __init__(self, node, listen_port, file_db, file_dir):
         self.node = node
         self.listen_port = listen_port
         self.file_db = file_db
+        self.file_dir = file_dir
         
         self._setupTCPNetworking()
 
@@ -146,8 +178,11 @@ class FileSharingService():
     def publishDirectory(self, key, path):
         files = []
         paths = []
+
         outerDf = defer.Deferred()
+
         self.factory.sharePath = path
+
         for entry in os.walk(path):
             for file in entry[2]:
                 if file not in files and file not in ('.directory'):
@@ -156,12 +191,15 @@ class FileSharingService():
         files.sort()
         
         l.log('files: {}'.format(len(files)))
+
         def publishNextFile(result=None):
             if len(files) > 0:
                 filename = files.pop()
                 l.log('--> {}'.format(filename))
                 df = self.node.publishData(filename, self.node.id)
-                self.file_db.add_file(key, path)
+                shutil.copyfile(os.path.join(path, filename),
+                                os.path.join(self.file_dir, filename))
+                self.file_db.add_file(key, filename)
                 df.addCallback(publishNextFile)
             else:
                 l.log('** done **')
@@ -253,7 +291,7 @@ def main():
     node.invalidKeywords.extend(('mp3', 'png', 'jpg', 'txt', 'ogg'))
     node.keywordSplitters.extend(('-', '!'))
 
-    file_service = FileSharingService(node, args.port, file_db)
+    file_service = FileSharingService(node, args.port, file_db, args.content_directory)
 
     for directory in args.shared:
         file_service.publishDirectory(public_key, directory)
