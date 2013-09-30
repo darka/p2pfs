@@ -60,12 +60,17 @@ class FileDatabase(object):
         self.conn.commit()
       
     def create_tables(self):
-        self.execute('''CREATE TABLE files
-                        (date text, pub_key text, path text)''')
+        try:
+            self.execute('''DROP TABLE files''')
+        except sqlite3.OperationalError:
+            l.log('Could not drop table')
+        self.execute(
+            '''CREATE TABLE files (date text, pub_key text, path text)''')
 
     def add_file(self, public_key, filename):
-        self.execute('''INSERT INTO files
-                        VALUES (datetime('now'), '{}', '{}')'''.format(public_key, filename))
+        self.execute(
+            '''INSERT INTO files VALUES (datetime('now'), '{}', '{}')'''.format(
+                public_key, filename))
         
 class CommandProcessor(Cmd):
     def __init__(self, file_service):
@@ -150,7 +155,7 @@ class FileSharingService():
                     paths.append(entry[0])
         files.sort()
         
-        l.log('files: ', len(files))
+        l.log('files: {}'.format(len(files)))
         def publishNextFile(result=None):
             if len(files) > 0:
                 filename = files.pop()
@@ -251,7 +256,7 @@ def main():
     file_service = FileSharingService(node, args.port, file_db)
 
     for directory in args.shared:
-        file_service.publishDirectory(directory)
+        file_service.publishDirectory(public_key, directory)
  
     node.joinNetwork(knownNodes)
 
