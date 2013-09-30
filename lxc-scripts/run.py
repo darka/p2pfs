@@ -11,6 +11,9 @@ prec = "cont"
 directory = "lxc_config"
 location = "/home/ubuntu/p2pfs"
 keys_location = "/home/ubuntu/p2pfs/src/keys/"
+dbs_location = "/home/ubuntu/p2pfs/src/dbs/"
+logs_location = "/home/ubuntu/p2pfs/src/logs/"
+resources_location = "/home/ubuntu/p2pfs/src/res/"
 node_location = os.path.join(location, 'src', 'share_node.py')
 base_command = node_location + " --port 2000"
 
@@ -41,21 +44,34 @@ def run_subprocess(address, command):
     command_parts = ['lxc-execute', '-n', address[0], '--', sys.executable] + command.split()
     print 'Running: {}'.format(' '.join(command_parts))
     subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=location)
+
+def with_default_args(command, current):
+    ret = command
+    key_location = os.path.join(keys_location, 'key' + str(current))
+    db_location = os.path.join(dbs_location, 'db' + str(current))
+    log_location = os.path.join(logs_location, 'log' + str(current))
+    resource_location = os.path.join(resources_location, 'res' + str(current))
+    try:
+        os.makedirs(resource_location)
+    except:
+        pass
+    ret += " --key {}".format(key_location)
+    ret += " --db {}".format(db_location)
+    ret += " --log {}".format(log_location)
+    ret += " --dir {}".format(resource_location)
+    return ret
   
 def run_nodes(addresses):
-    def add_key_arg(command, current):
-      key_location = os.path.join(keys_location, 'key' + str(current))
-      return command + " --key {}".format(key_location)
       
     current = 0
     # run the first container 
     a = addresses.pop(random.randint(0, len(addresses) - 1))
 
-    command = add_key_arg(base_command, current)
+    command = with_default_args(base_command, current)
 
     # add share if needed
     if current in shares:
-      command = '{} {} {}'.format(command, '--share', shares[current])
+        command = '{} {} {}'.format(command, '--share', shares[current])
     run_subprocess(a, command)
 
     # run the rest of containers:
@@ -68,7 +84,7 @@ def run_nodes(addresses):
         
         command = "{} --connect {}:2000".format(base_command, a[1])
 
-        command = add_key_arg(command, current)
+        command = with_default_args(command, current)
 
         if current in shares:
             command = '{} {} {}'.format(command, '--share', shares[current])

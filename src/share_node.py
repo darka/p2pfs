@@ -9,6 +9,7 @@ import argparse
 import os
 import sys
 import hashlib
+import sqlite3
 
 import entangled.node
 
@@ -26,6 +27,41 @@ from Crypto.PublicKey import RSA
 
 DEST_FILENAME = "downloaded.data"
 
+class Logger(object):
+    def __init__(self, where=None):
+        self.set_output(where)
+
+    def set_output(self, where):
+        if not where:
+            self.out = sys.stdout
+        else:
+            self.out = where
+
+    def log(self, message):
+        self.out.write(message + '\n')
+    
+
+l = Logger()
+
+class FileDatabase(object):
+    def __init__(self, filename):
+        self.conn = sqlite3.connect(filename)
+        self.create_tables()
+
+    def execute(self, command):
+        l.log(command)
+        c = self.conn.cursor()
+        c.execute(command)
+        self.conn.commit()
+      
+    def create_tables(self):
+        self.execute('''CREATE TABLE files
+                        (date text, pub_key text, path text)''')
+
+    def add_file(self, public_key, filename):
+        self.execute('''INSERT INTO files
+                        VALUES (datetime('now'), '{}', '{}')'''.format(public_key, filename))
+        
 class CommandProcessor(Cmd):
     def __init__(self, file_service):
         self.prompt = ''
@@ -71,7 +107,7 @@ class FileGetter(Protocol):
     
     def connectionLost(self, reason):
         if len(self.buffer) == 0:
-             sys.stderr.write("Error! Connection lost :(\n")
+             l.log("Error! Connection lost :(\n")
              return
      
         f = open(self.destination, 'w')
@@ -80,9 +116,10 @@ class FileGetter(Protocol):
 
 
 class FileSharingService():
-    def __init__(self, node, listen_port):
+    def __init__(self, node, listen_port, file_db):
         self.node = node
         self.listen_port = listen_port
+        self.file_db = file_db
         
         self._setupTCPNetworking()
 
@@ -96,7 +133,7 @@ class FileSharingService():
     def search(self, keyword):
         return self.node.searchForKeywords(keyword)
     
-    def publishDirectory(self, path):
+    def publishDirectory(self, key, path):
         files = []
         paths = []
         outerDf = defer.Deferred()
@@ -108,16 +145,18 @@ class FileSharingService():
                     paths.append(entry[0])
         files.sort()
         
-        print 'files: ', len(files)
+        l.log('files: ', len(files))
         def publishNextFile(result=None):
             if len(files) > 0:
                 filename = files.pop()
-                print '-->',filename
+                l.log('--> {}'.format(filename))
                 df = self.node.publishData(filename, self.node.id)
+                self.file_db.add_file(key, path)
                 df.addCallback(publishNextFile)
             else:
-                print '** done **'
+                l.log('** done **')
                 outerDf.callback(None)
+
         publishNextFile()
     
     def downloadFile(self, filename, destination):
@@ -134,7 +173,7 @@ class FileSharingService():
                 protocol.requestFile(filename, destination)
         def connectToPeer(contact):
             if contact == None:
-                sys.stderr.write("File could not be retrieved.\nThe host that published this file is no longer on-line.\n")
+                l.log("File could not be retrieved.\nThe host that published this file is no longer on-line.\n")
             else:
                 c = ClientCreator(reactor, FileGetter)
                 df = c.connectTCP(contact.address, contact.port)
@@ -147,18 +186,17 @@ class FileSharingService():
         
 
 def perform_download(file_service, filename, destination):
-    print("downloading {} to {}...".format(filename, destination))
+    l.log("downloading {} to {}...".format(filename, destination))
     file_service.downloadFile(filename, destination)
 
 
 def perform_keyword_search(file_service, keyword):
-    print("performing search...")
+    l.log("performing search...")
     df = file_service.search(keyword)
     def printKeyword(result):
-        print("keyword: {}".format(keyword))
-        print("  {}".format(result))
+        l.log("keyword: {}".format(keyword))
+        l.log("  {}".format(result))
     df.addCallback(printKeyword)
-
     
 def main():
     parser = argparse.ArgumentParser()
@@ -166,9 +204,14 @@ def main():
     parser.add_argument('--port', required=True, type=int)
     parser.add_argument('--connect', dest='address', default=None)
     parser.add_argument('--share', dest='shared', default=[], nargs='*')
-    parser.add_argument('--dest', dest='destination_folder', default=DEST_FILENAME)
+    parser.add_argument('--dir', dest='content_directory', required=True)
+    parser.add_argument('--db', dest='db_filename', required=True)
+    parser.add_argument('--log', dest='log_filename', default=None)
     args = parser.parse_args()
+
+    l.set_output(open(args.log_filename, 'w'))
     
+    file_db = FileDatabase(args.db_filename)
     if args.address:
         ip, port = args.address.split(':')
         port = int(port)
@@ -193,21 +236,22 @@ def main():
     #key = RSA.importKey(open(args.key + '.pub').read())
 
     sha = hashlib.sha1()
-    sha.update(open(args.key + '.pub').read())
+    public_key = open(args.key + '.pub').read().strip()
+    sha.update(public_key)
     node_id = sha.digest()
 
     node = entangled.node.EntangledNode(id=node_id, udpPort=args.port, dataStore=dataStore)
     node.invalidKeywords.extend(('mp3', 'png', 'jpg', 'txt', 'ogg'))
     node.keywordSplitters.extend(('-', '!'))
 
-    file_service = FileSharingService(node, args.port)
+    file_service = FileSharingService(node, args.port, file_db)
 
     for directory in args.shared:
         file_service.publishDirectory(directory)
  
     node.joinNetwork(knownNodes)
 
-    print 'Node running.'
+    l.log('Node running.')
     processor = CommandProcessor(file_service)
 
     reactor.callInThread(processor.cmdloop)
