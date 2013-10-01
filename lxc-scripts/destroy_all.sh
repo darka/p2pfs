@@ -2,8 +2,7 @@
 nodes=`lxc-ls`
 for node in $nodes
 do
-  echo 'stopping...'
+  echo destroying $node
   sudo lxc-stop -n $node
-  echo 'destroying...'
   sudo lxc-destroy -n $node
 done

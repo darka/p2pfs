@@ -91,14 +91,13 @@ class CommandProcessor(Cmd):
 
 class IndexMasterProtocol(LineReceiver):
     def __init__(self):
-        Protocol.__init__(self)
         self.setLineMode()
+        l.log('Index Master Running')
 
     def lineReceived(self, data):
-        l.log(data)
-        data = data.split('*')
         self.buffer = ''
-        self.filename = data[0]
+        self.filename = data
+        l.log("Index Master received: {}".format(self.filename))
         self.destination = os.path.join('/tmp', self.filename)
         self.setRawMode()
 
@@ -114,46 +113,52 @@ class IndexMasterProtocol(LineReceiver):
         f.write(self.buffer)
         f.close()
 
-#class UploaderProtocol(LineReceiver):
-#    def uploadFile(filename):
-#        self.
-
-class FileServer(Protocol):
-    def dataReceived(self, data):
-        request = data.strip()
-        for entry in os.walk(self.factory.sharePath):
-            for filename in entry[2]:
-                if filename == request:
-                    fullPath = '%s/%s' % (entry[0], filename)
-                    f = open(fullPath, 'r')
-                    buf = f.read()
-                    self.transport.write(buf)
-                    f.close()
-                    break
+class UploaderProtocol(LineReceiver):
+    def uploadFile(filename, file_path):
+        self.transport.sendLine(filename)
+        l.log("uploadFile: {} {}".format(filename, file_path))
+        f = open(file_path, 'r')
+        buf = f.read()
+        self.transport.write(buf)
+        f.close()
         self.transport.loseConnection()
 
-class FileGetter(Protocol):
-    def connectionMade(self):
-        self.buffer = ''
-        self.filename = ''
-        self.destination = ''
-        
-    def requestFile(self, filename, destination):
-        self.filename = filename
-        self.destination = destination
-        self.transport.write('%s\r\n' % filename)
-
-    def dataReceived(self, data):
-        self.buffer += data
-    
-    def connectionLost(self, reason):
-        if len(self.buffer) == 0:
-             l.log("Error! Connection lost :(\n")
-             return
-     
-        f = open(self.destination, 'w')
-        f.write(self.buffer)
-        f.close()
+#class FileServer(Protocol):
+#    def dataReceived(self, data):
+#        request = data.strip()
+#        for entry in os.walk(self.factory.sharePath):
+#            for filename in entry[2]:
+#                if filename == request:
+#                    fullPath = '%s/%s' % (entry[0], filename)
+#                    f = open(fullPath, 'r')
+#                    buf = f.read()
+#                    self.transport.write(buf)
+#                    f.close()
+#                    break
+#        self.transport.loseConnection()
+#
+#class FileGetter(Protocol):
+#    def connectionMade(self):
+#        self.buffer = ''
+#        self.filename = ''
+#        self.destination = ''
+#        
+#    def requestFile(self, filename, destination):
+#        self.filename = filename
+#        self.destination = destination
+#        self.transport.write('%s\r\n' % filename)
+#
+#    def dataReceived(self, data):
+#        self.buffer += data
+#    
+#    def connectionLost(self, reason):
+#        if len(self.buffer) == 0:
+#             l.log("Error! Connection lost :(\n")
+#             return
+#     
+#        f = open(self.destination, 'w')
+#        f.write(self.buffer)
+#        f.close()
 
 
 class FileSharingService():
@@ -165,16 +170,44 @@ class FileSharingService():
         
         self._setupTCPNetworking()
 
+        self.REPLICA_COUNT = 2
+
     def _setupTCPNetworking(self):
         # Next lines are magic:
         self.factory = ServerFactory()
-        self.factory.protocol = FileServer
+        self.factory.protocol = IndexMasterProtocol
         self.factory.sharePath = '.'
         reactor.listenTCP(self.listen_port, self.factory)
 
     def search(self, keyword):
         return self.node.searchForKeywords(keyword)
     
+    def publishFileWithUpload(self, filename, file_path):
+        key = sha_hash(filename)
+        l.log('publishing file {} ({})'.format(filename, file_path))
+
+        def uploadFile(protocol):
+            if protocol != None:
+                protocol.uploadFile(filename, file_path)
+
+        def uploadFileToPeers(contacts):
+            outerDf = defer.Deferred()
+            if not contacts:
+                l.log("Could not reach any peers.")
+            else:
+                for contact in contacts:
+                    c = ClientCreator(reactor, UploaderProtocol)
+                    df = c.connectTCP(contact.address, contact.port)
+                    df.addCallback(uploadFile)
+                    l.log("Will upload '{}' to: {}".format(file_path, contact))
+                    outerDf.chainDeferred(df)
+            return outerDf
+        
+
+        df = self.node.iterativeFindNode(key)
+        df.addCallback(uploadFileToPeers)
+        return df
+
     def publishDirectory(self, key, path):
         files = []
         paths = []
@@ -196,9 +229,9 @@ class FileSharingService():
             if len(files) > 0:
                 filename = files.pop()
                 l.log('--> {}'.format(filename))
-                df = self.node.publishData(filename, self.node.id)
-                shutil.copyfile(os.path.join(path, filename),
-                                os.path.join(self.file_dir, filename))
+                full_file_path = os.path.join(self.file_dir, filename)
+                shutil.copyfile(os.path.join(path, filename), full_file_path)
+                df = self.publishFileWithUpload(filename, full_file_path)
                 self.file_db.add_file(key, filename)
                 df.addCallback(publishNextFile)
             else:
@@ -233,6 +266,10 @@ class FileSharingService():
         
 
 def perform_download(file_service, filename, destination):
+    l.log("downloading {} to {}...".format(filename, destination))
+    file_service.downloadFile(filename, destination)
+
+def publish_file(file_service, filename, destination):
     l.log("downloading {} to {}...".format(filename, destination))
     file_service.downloadFile(filename, destination)
 
@@ -294,7 +331,7 @@ def main():
     file_service = FileSharingService(node, args.port, file_db, args.content_directory)
 
     for directory in args.shared:
-        file_service.publishDirectory(public_key, directory)
+        reactor.callLater(10, file_service.publishDirectory, public_key, directory)
  
     node.joinNetwork(knownNodes)
 
