@@ -14,6 +14,8 @@ import shutil
 import entangled.node
 
 from cmd import Cmd
+from stat import S_IFDIR, S_IFLNK, S_IFREG
+
 from twisted.internet import reactor
 from twisted.internet import task
 from twisted.internet import defer
@@ -69,7 +71,7 @@ class FileDatabase(object):
       self.execute('''DROP TABLE files''')
     except sqlite3.OperationalError:
       l.log('Could not drop table')
-      self.execute(
+    self.execute(
           "CREATE TABLE files ("
           "pub_key text, "
           "filename text, "
@@ -82,7 +84,7 @@ class FileDatabase(object):
           "st_ctime text DEFAULT (datetime('now','localtime')), "
           "st_nlink integer DEFAULT 1, "
           "st_size integer DEFAULT 0)")
-      self.commit()
+    self.commit()
 
   def chmod(self, public_key, path, mode):
     c = self.execute("SELECT st_mode FROM files WHERE pub_key='{}' AND path='{}'".format(public_key, path))
@@ -107,15 +109,15 @@ class FileDatabase(object):
   def add_file(self, public_key, filename, path, mode):
     self.execute("INSERT INTO files"
                  "(pub_key, filename, path, st_mode) "
-                 "VALUES('{}', '{}', '{}', '{}')").format(
-        public_key, filename, path, S_IFREG | mode)
+                 "VALUES('{}', '{}', '{}', '{}')".format(
+        public_key, filename, path, S_IFREG | mode))
     self.commit()
 
   def add_directory(self, public_key, path, mode):
     self.execute("INSERT INTO files"
                  "(pub_key, path, st_mode, st_nlink) "
-                 "VALUES('{}', '{}', '{}', '{}')").format(
-        public_key, path, S_IFDIR | mode, 2)
+                 "VALUES('{}', '{}', '{}', '{}')".format(
+        public_key, path, S_IFDIR | mode, 2))
     self.execute("UPDATE files SET st_nlink = st_nlink + 1 WHERE path='{}' AND pub_key='{}'".format(
         '/', public_key))
     self.commit()
@@ -129,7 +131,6 @@ class FileDatabase(object):
 class FileSystem(LoggingMixIn, Operations):
   def __init__(self, key, file_db):
     self.fd = 0
-    now = time()
     self.file_db = file_db
     #self.root = root
     self.key = key
@@ -162,11 +163,32 @@ class FileSystem(LoggingMixIn, Operations):
     self.fd += 1
     return self.fd
 
-  read = None
-  readlink = None
-  release = None
-  rename = None
-  rmdir = None
+  def read(self, path, size, offset, fh):
+    print 'read'
+
+  def symlink(self, target, source):
+    print 'symlink'
+
+  def utimens(self, path, times=None):
+    print 'utimens'
+
+  def write(self, path, data, offset, fh):
+    print 'write'
+
+  def readlink(self, path):
+    print 'readlink'
+
+  def rename(self, old, new):
+    print 'rename'
+  
+  def rmdir(self, path):
+    print 'rmdir'
+
+  def unlink(self, path):
+    print 'unlink'
+
+  def truncate(self, path, length, fh=None):
+    print 'truncate'
 
   def statfs(self, path):
     return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
@@ -442,6 +464,7 @@ def main():
 
   l.log('Node running.')
   if args.fs:
+    #fuse = FUSE(FileSystem(public_key, file_db), args.fs, foreground=True)
     reactor.callInThread(FUSE, FileSystem(public_key, file_db), args.fs, foreground=True)
   #processor = CommandProcessor(file_service)
   #reactor.callInThread(processor.cmdloop)
