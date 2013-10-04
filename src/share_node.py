@@ -85,7 +85,7 @@ class FileDatabase(object):
       self.commit()
 
   def chmod(self, public_key, path, mode):
-    c = self.execute("SELECT st_mode FROM files WHERE pub_key='{}' AND path='{}'")
+    c = self.execute("SELECT st_mode FROM files WHERE pub_key='{}' AND path='{}'".format(public_key, path))
     old_mode = c.fetchone()[0]
     old_mode &= 0770000
     mode = old_mode | mode
@@ -98,27 +98,85 @@ class FileDatabase(object):
         uid, gid, path, public_key))
     self.commit()
     
+  def getattr(self, public_key, path):
+    fields = 'st_ctime, st_gid, st_mode, st_mtime, st_nlink, st_size'.split(', ')
+    c = self.execute("SELECT {} FROM files WHERE pub_key='{}' AND path='{}'".format(', '.join(fields), public_key, path))
+    attrs = c.fetchone()
+    return dict(zip(fields, attrs))
+
   def add_file(self, public_key, filename, path, mode):
     self.execute("INSERT INTO files"
                  "(pub_key, filename, path, st_mode) "
                  "VALUES('{}', '{}', '{}', '{}')").format(
-        public_key, filename, path, S_IFREG | mode))
+        public_key, filename, path, S_IFREG | mode)
     self.commit()
-      
+
+  def add_directory(self, public_key, path, mode):
+    self.execute("INSERT INTO files"
+                 "(pub_key, path, st_mode, st_nlink) "
+                 "VALUES('{}', '{}', '{}', '{}')").format(
+        public_key, path, S_IFDIR | mode, 2)
+    self.execute("UPDATE files SET st_nlink = st_nlink + 1 WHERE path='{}' AND pub_key='{}'".format(
+        '/', public_key))
+    self.commit()
+
+  def list_directory(self, public_key, path):
+    c = self.execute("SELECT filename FROM files WHERE pub_key='{}' AND path='{}'".format(public_key, path))
+    rows = c.fetchall()
+    return [row[0] for row in rows]
+
+ 
 class FileSystem(LoggingMixIn, Operations):
   def __init__(self, key, file_db):
     self.fd = 0
     now = time()
     self.file_db = file_db
+    #self.root = root
     self.key = key
+    self.file_db.add_directory(self.key, '/', 0755)
+
+  def chown(self, path, uid, gid):
+    self.file_db.chmod(self.key, path, uid, gid)
 
   def chmod(self, path, mode):
     self.file_db.chmod(self.key, path, mode)
+
+  def getattr(self, path, fh=None):
+    return self.file_db.getattr(self.key, path)
+
+  getxattr = None
+  listxattr = None
+
+  def readdir(self, path):
+    return ['.', '..'] + self.file_db.list_directory(self.key, path)
 
   def create(self, path, mode):
     self.file_db.add_file(self.key, os.path.basename(path), path, mode)
     self.fd += 1
     return self.fd
+
+  def mkdir(self, path, mode):
+    self.file_db.add_directory(self.key, path, mode)
+
+  def open(self, path, flags):
+    self.fd += 1
+    return self.fd
+
+  read = None
+  readlink = None
+  release = None
+  rename = None
+  rmdir = None
+
+  def statfs(self, path):
+    return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
+  
+  symlink = None
+  truncate = None
+  unlink = None
+  utimens = None
+  write = None
+
 
 class CommandProcessor(Cmd):
   def __init__(self, file_service):
@@ -384,7 +442,7 @@ def main():
 
   l.log('Node running.')
   if args.fs:
-    reactor.callInThread(FUSE, FileSystem(), args.fs, foreground=True)
+    reactor.callInThread(FUSE, FileSystem(public_key, file_db), args.fs, foreground=True)
   #processor = CommandProcessor(file_service)
   #reactor.callInThread(processor.cmdloop)
   reactor.run()
