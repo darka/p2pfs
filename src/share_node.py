@@ -143,13 +143,12 @@ class FileSystem(LoggingMixIn, Operations):
     self.file_db = file_db
     #self.root = root
     self.key = key
-    self.file_db.add_directory(self.key, '/', 0755)
 
   def chown(self, path, uid, gid):
-    self.file_db.chmod(self.key, path, uid, gid)
+    threads.blockingCallFromThread(reactor, self.file_db.chown, self.key, path, uid, gid)
 
   def chmod(self, path, mode):
-    self.file_db.chmod(self.key, path, mode)
+    threads.blockingCallFromThread(reactor, self.file_db.chmod, self.key, path, mode)
 
   def getattr(self, path, fh=None):
     result = threads.blockingCallFromThread(
@@ -442,6 +441,7 @@ if __name__ == '__main__':
   parser.add_argument('--fs', default=None)
   args = parser.parse_args()
 
+  print('> opening log file')
   l.set_output(open(args.log_filename, 'w'))
   
   file_db = FileDatabase(args.db_filename)
@@ -468,6 +468,7 @@ if __name__ == '__main__':
 
   ##key = RSA.importKey(open(args.key + '.pub').read())
 
+  print('> reading key')
   sha = hashlib.sha1()
   public_key = open(args.key + '.pub').read().strip()
   sha.update(public_key)
@@ -482,13 +483,16 @@ if __name__ == '__main__':
   for directory in args.shared:
     reactor.callLater(10, file_service.publishDirectory, public_key, directory)
  
+  print('> joining network')
   node.joinNetwork(knownNodes)
 
+  file_db.add_directory(public_key, '/', 0755)
   l.log('Node running.')
   if args.fs:
     #fuse = FUSE(FileSystem(public_key, file_db), args.fs, foreground=True)
     reactor.callInThread(FUSE, FileSystem(public_key, file_db), args.fs, foreground=True)
   #processor = CommandProcessor(file_service)
   #reactor.callInThread(processor.cmdloop)
+  print('> running')
   reactor.run()
 
