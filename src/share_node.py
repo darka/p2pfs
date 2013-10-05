@@ -84,9 +84,9 @@ class FileDatabase(object):
           "st_mode integer, "
           "st_uid integer, "
           "st_gid integer, "
-          "st_atime text DEFAULT (datetime('now','localtime')), "
-          "st_mtime text DEFAULT (datetime('now','localtime')), "
-          "st_ctime text DEFAULT (datetime('now','localtime')), "
+          "st_atime integer DEFAULT 0, "
+          "st_mtime integer DEFAULT 0, "
+          "st_ctime integer DEFAULT 0, "
           "st_nlink integer DEFAULT 1, "
           "st_size integer DEFAULT 0)")
     self.commit()
@@ -101,15 +101,18 @@ class FileDatabase(object):
     self.commit()
     
   def chown(self, public_key, path, uid, gid):
-    self.execute("UPDATE files SET uid={}, gid={} WHERE path='{}' AND pub_key='{}'".format(
+    self.execute("UPDATE files SET st_uid={}, st_gid={} WHERE path='{}' AND pub_key='{}'".format(
         uid, gid, path, public_key))
     self.commit()
     
   def getattr(self, public_key, path):
-    fields = 'st_ctime, st_gid, st_mode, st_mtime, st_nlink, st_size'.split(', ')
+    fields = 'st_atime, st_ctime, st_mode, st_mtime, st_nlink, st_size'.split(', ')
     c = self.execute("SELECT {} FROM files WHERE pub_key='{}' AND path='{}'".format(', '.join(fields), public_key, path))
     attrs = c.fetchone()
-    return dict(zip(fields, attrs))
+    if not attrs: 
+      return None
+    result = dict(zip(fields, attrs))
+    return result
 
   def add_file(self, public_key, filename, path, mode):
     self.execute("INSERT INTO files"
@@ -123,7 +126,8 @@ class FileDatabase(object):
                  "(pub_key, path, st_mode, st_nlink) "
                  "VALUES('{}', '{}', '{}', '{}')".format(
         public_key, path, S_IFDIR | mode, 2))
-    self.execute("UPDATE files SET st_nlink = st_nlink + 1 WHERE path='{}' AND pub_key='{}'".format(
+    if path != '/':
+      self.execute("UPDATE files SET st_nlink = st_nlink + 1 WHERE path='{}' AND pub_key='{}'".format(
         '/', public_key))
     self.commit()
 
@@ -141,23 +145,19 @@ class FileSystem(LoggingMixIn, Operations):
     self.key = key
     self.file_db.add_directory(self.key, '/', 0755)
 
-  #def chown(self, path, uid, gid):
-  #  self.file_db.chmod(self.key, path, uid, gid)
+  def chown(self, path, uid, gid):
+    self.file_db.chmod(self.key, path, uid, gid)
 
-  #def chmod(self, path, mode):
-  #  self.file_db.chmod(self.key, path, mode)
+  def chmod(self, path, mode):
+    self.file_db.chmod(self.key, path, mode)
 
-  #def getattr(self, path, fh=None):
-  #  print path
-  #  return self.file_db.getattr(self.key, path)
   def getattr(self, path, fh=None):
-    if path == '/':
-        st = dict(st_mode=(S_IFDIR | 0755), st_nlink=2)
+    result = threads.blockingCallFromThread(
+        reactor, self.file_db.getattr, self.key, path)
+    if result:
+      return result
     else:
-        raise FuseOSError(ENOENT)
-
-    st['st_ctime'] = st['st_mtime'] = st['st_atime'] = time()
-    return st
+      raise FuseOSError(ENOENT)
 
   getxattr = None
   listxattr = None
