@@ -1,9 +1,9 @@
 #! /usr/bin/env python
-#
-# This library is free software, distributed under the terms of
-# the GNU Lesser General Public License Version 3, or any later version.
-# See the COPYING file included in this archive
-#
+##
+## This library is free software, distributed under the terms of
+## the GNU Lesser General Public License Version 3, or any later version.
+## See the COPYING file included in this archive
+##
 
 import argparse
 import os
@@ -28,7 +28,12 @@ from entangled.kademlia.datastore import SQLiteDataStore
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
-from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
+from errno import ENOENT
+from stat import S_IFDIR, S_IFREG
+from sys import argv, exit
+from time import time
+
+from fuse import FUSE, FuseOSError, Operations, LoggingMixIn, fuse_get_context
 
 def sha_hash(name):
   h = hashlib.sha1()
@@ -127,7 +132,7 @@ class FileDatabase(object):
     rows = c.fetchall()
     return [row[0] for row in rows]
 
- 
+
 class FileSystem(LoggingMixIn, Operations):
   def __init__(self, key, file_db):
     self.fd = 0
@@ -136,62 +141,78 @@ class FileSystem(LoggingMixIn, Operations):
     self.key = key
     self.file_db.add_directory(self.key, '/', 0755)
 
-  def chown(self, path, uid, gid):
-    self.file_db.chmod(self.key, path, uid, gid)
+  #def chown(self, path, uid, gid):
+  #  self.file_db.chmod(self.key, path, uid, gid)
 
-  def chmod(self, path, mode):
-    self.file_db.chmod(self.key, path, mode)
+  #def chmod(self, path, mode):
+  #  self.file_db.chmod(self.key, path, mode)
 
+  #def getattr(self, path, fh=None):
+  #  print path
+  #  return self.file_db.getattr(self.key, path)
   def getattr(self, path, fh=None):
-    return self.file_db.getattr(self.key, path)
+    if path == '/':
+        st = dict(st_mode=(S_IFDIR | 0755), st_nlink=2)
+    else:
+        raise FuseOSError(ENOENT)
+
+    st['st_ctime'] = st['st_mtime'] = st['st_atime'] = time()
+    return st
 
   getxattr = None
   listxattr = None
 
-  def readdir(self, path):
-    return ['.', '..'] + self.file_db.list_directory(self.key, path)
+  def readdir(self, path, fh):
+    return ['.', '..']# + self.file_db.list_directory(self.key, path)
 
-  def create(self, path, mode):
-    self.file_db.add_file(self.key, os.path.basename(path), path, mode)
-    self.fd += 1
-    return self.fd
+  #def create(self, path, mode):
+  #  self.file_db.add_file(self.key, os.path.basename(path), path, mode)
+  #  self.fd += 1
+  #  return self.fd
 
-  def mkdir(self, path, mode):
-    self.file_db.add_directory(self.key, path, mode)
+  #def mkdir(self, path, mode):
+  #  self.file_db.add_directory(self.key, path, mode)
 
-  def open(self, path, flags):
-    self.fd += 1
-    return self.fd
+  access = None
+  flush = None
+  open = None
+  opendir = None
+  release = None
+  releasedir = None
+  statfs = None
+  #def open(self, path, flags):
+  #  self.fd += 1
+  #  return self.fd
 
   def read(self, path, size, offset, fh):
-    print 'read'
+    return ''
 
-  def symlink(self, target, source):
-    print 'symlink'
+  #def symlink(self, target, source):
+  #  print 'symlink'
 
-  def utimens(self, path, times=None):
-    print 'utimens'
+  #def utimens(self, path, times=None):
+  #  print 'utimens'
 
-  def write(self, path, data, offset, fh):
-    print 'write'
+  #def write(self, path, data, offset, fh):
+  #  print 'write'
 
-  def readlink(self, path):
-    print 'readlink'
+  #def readlink(self, path):
+  #  print 'readlink'
 
-  def rename(self, old, new):
-    print 'rename'
-  
-  def rmdir(self, path):
-    print 'rmdir'
+  #def rename(self, old, new):
+  #  print 'rename'
+  #
+  #def rmdir(self, path):
+  #  print 'rmdir'
 
-  def unlink(self, path):
-    print 'unlink'
+  #def unlink(self, path):
+  #  print 'unlink'
 
-  def truncate(self, path, length, fh=None):
-    print 'truncate'
+  #def truncate(self, path, length, fh=None):
+  #  print 'truncate'
 
-  def statfs(self, path):
-    return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
+  #def statfs(self, path):
+  #  return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
   
   symlink = None
   truncate = None
@@ -408,7 +429,8 @@ def perform_keyword_search(file_service, keyword):
     l.log("  {}".format(result))
   df.addCallback(printKeyword)
   
-def main():
+
+if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--key', required=True)
   parser.add_argument('--port', required=True, type=int)
@@ -427,14 +449,14 @@ def main():
     ip, port = args.address.split(':')
     port = int(port)
     knownNodes = [(ip, port)]
-#  elif len(sys.argv) == 3:
-#    knownNodes = []
-#    f = open(sys.argv[2], 'r')
-#    lines = f.readlines()
-#    f.close()
-#    for line in lines:
-#      ipAddress, udpPort = line.split()
-#      knownNodes.append((ipAddress, int(udpPort)))
+  # elif len(sys.argv) == 3:
+  #   knownNodes = []
+  #   f = open(sys.argv[2], 'r')
+  #   lines = f.readlines()
+  #   f.close()
+  #   for line in lines:
+  #     ipAddress, udpPort = line.split()
+  #     knownNodes.append((ipAddress, int(udpPort)))
   else:
     knownNodes = None
 
@@ -444,7 +466,7 @@ def main():
     pass
   dataStore = None#SQLiteDataStore(os.path.expanduser('~')+'/.entangled/fileshare.sqlite')
 
-  #key = RSA.importKey(open(args.key + '.pub').read())
+  ##key = RSA.importKey(open(args.key + '.pub').read())
 
   sha = hashlib.sha1()
   public_key = open(args.key + '.pub').read().strip()
@@ -470,5 +492,3 @@ def main():
   #reactor.callInThread(processor.cmdloop)
   reactor.run()
 
-if __name__ == '__main__':
-  main()
