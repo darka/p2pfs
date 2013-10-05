@@ -11,6 +11,7 @@ import sys
 import hashlib
 import sqlite3
 import shutil
+import time
 import entangled.node
 
 from cmd import Cmd
@@ -31,7 +32,6 @@ from Crypto.PublicKey import RSA
 from errno import ENOENT
 from stat import S_IFDIR, S_IFREG
 from sys import argv, exit
-from time import time
 
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn, fuse_get_context
 
@@ -117,19 +117,21 @@ class FileDatabase(object):
     return result
 
   def add_file(self, public_key, filename, path, mode):
+    current_time = int(time.time())
     self.execute("INSERT INTO files"
-                 "(pub_key, filename, path, st_mode) "
-                 "VALUES('{}', '{}', '{}', '{}')".format(
-        public_key, filename, path, S_IFREG | mode))
+                 "(pub_key, filename, path, st_mode, st_atime, st_mtime, st_ctime) "
+                 "VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}')".format(
+        public_key, filename, path, S_IFREG | mode, current_time, current_time, current_time))
     self.commit()
 
   def add_directory(self, public_key, path, mode):
+    current_time = int(time.time())
     dirname = os.path.dirname(path)
     filename = os.path.basename(path)
     self.execute("INSERT INTO files"
-                 "(pub_key, path, filename, st_mode, st_nlink) "
-                 "VALUES('{}', '{}', '{}', '{}', '{}')".format(
-        public_key, dirname, filename, S_IFDIR | mode, 2))
+                 "(pub_key, path, filename, st_mode, st_nlink, st_atime, st_mtime, st_ctime) "
+                 "VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}')".format(
+        public_key, dirname, filename, S_IFDIR | mode, 2, current_time, current_time, current_time))
     if path != '/':
       self.execute("UPDATE files SET st_nlink = st_nlink + 1 WHERE path='{}' AND pub_key='{}'".format(
         '/', public_key))
