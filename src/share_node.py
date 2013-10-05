@@ -106,8 +106,10 @@ class FileDatabase(object):
     self.commit()
     
   def getattr(self, public_key, path):
+    dirname = os.path.dirname(path)
+    filename = os.path.basename(path)
     fields = 'st_atime, st_ctime, st_mode, st_mtime, st_nlink, st_size'.split(', ')
-    c = self.execute("SELECT {} FROM files WHERE pub_key='{}' AND path='{}'".format(', '.join(fields), public_key, path))
+    c = self.execute("SELECT {} FROM files WHERE pub_key='{}' AND path='{}' AND filename='{}'".format(', '.join(fields), public_key, dirname, filename))
     attrs = c.fetchone()
     if not attrs: 
       return None
@@ -122,10 +124,12 @@ class FileDatabase(object):
     self.commit()
 
   def add_directory(self, public_key, path, mode):
+    dirname = os.path.dirname(path)
+    filename = os.path.basename(path)
     self.execute("INSERT INTO files"
-                 "(pub_key, path, st_mode, st_nlink) "
-                 "VALUES('{}', '{}', '{}', '{}')".format(
-        public_key, path, S_IFDIR | mode, 2))
+                 "(pub_key, path, filename, st_mode, st_nlink) "
+                 "VALUES('{}', '{}', '{}', '{}', '{}')".format(
+        public_key, dirname, filename, S_IFDIR | mode, 2))
     if path != '/':
       self.execute("UPDATE files SET st_nlink = st_nlink + 1 WHERE path='{}' AND pub_key='{}'".format(
         '/', public_key))
@@ -134,7 +138,7 @@ class FileDatabase(object):
   def list_directory(self, public_key, path):
     c = self.execute("SELECT filename FROM files WHERE pub_key='{}' AND path='{}'".format(public_key, path))
     rows = c.fetchall()
-    return [row[0] for row in rows]
+    return [row[0] for row in rows if row[0]]
 
 
 class FileSystem(LoggingMixIn, Operations):
@@ -162,26 +166,30 @@ class FileSystem(LoggingMixIn, Operations):
   listxattr = None
 
   def readdir(self, path, fh):
-    return ['.', '..']# + self.file_db.list_directory(self.key, path)
+    contents = threads.blockingCallFromThread(reactor, self.file_db.list_directory, self.key, path)
+    ret = ['.', '..'] 
+    if contents:
+      return ret + contents
+    else:
+      return ret
 
-  #def create(self, path, mode):
-  #  self.file_db.add_file(self.key, os.path.basename(path), path, mode)
-  #  self.fd += 1
-  #  return self.fd
+  def create(self, path, mode):
+    threads.blockingCallFromThread(reactor, self.file_db.add_file, self.key, os.path.basename(path), path, mode)
+    self.fd += 1
+    return self.fd
 
-  #def mkdir(self, path, mode):
-  #  self.file_db.add_directory(self.key, path, mode)
+  def mkdir(self, path, mode):
+    threads.blockingCallFromThread(reactor, self.file_db.add_directory, self.key, path, mode)
 
   access = None
   flush = None
-  open = None
   opendir = None
   release = None
   releasedir = None
-  statfs = None
-  #def open(self, path, flags):
-  #  self.fd += 1
-  #  return self.fd
+
+  def open(self, path, flags):
+    self.fd += 1
+    return self.fd
 
   def read(self, path, size, offset, fh):
     return ''
@@ -210,8 +218,8 @@ class FileSystem(LoggingMixIn, Operations):
   #def truncate(self, path, length, fh=None):
   #  print 'truncate'
 
-  #def statfs(self, path):
-  #  return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
+  def statfs(self, path):
+    return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
   
   symlink = None
   truncate = None
@@ -486,6 +494,7 @@ if __name__ == '__main__':
   print('> joining network')
   node.joinNetwork(knownNodes)
 
+  print('> adding \'/\'')
   file_db.add_directory(public_key, '/', 0755)
   l.log('Node running.')
   if args.fs:
