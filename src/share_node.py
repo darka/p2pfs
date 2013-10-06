@@ -13,7 +13,8 @@ import sqlite3
 import shutil
 import time
 import entangled.node
-
+  
+from threading import Lock
 from cmd import Cmd
 from stat import S_IFDIR, S_IFLNK, S_IFREG
 
@@ -92,17 +93,28 @@ class FileDatabase(object):
     self.commit()
 
   def chmod(self, public_key, path, mode):
-    c = self.execute("SELECT st_mode FROM files WHERE pub_key='{}' AND path='{}'".format(public_key, path))
+    filename = os.path.basename(path)
+    dirname = os.path.dirname(path)
+    c = self.execute("SELECT st_mode FROM files WHERE pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
     old_mode = c.fetchone()[0]
     old_mode &= 0770000
     mode = old_mode | mode
-    self.execute("UPDATE files SET st_mode={} WHERE path='{}' AND pub_key='{}'".format(
-        mode, path, public_key))
+    self.execute("UPDATE files SET st_mode={} WHERE path='{}' AND filename='{}' AND pub_key='{}'".format(
+        mode, dirname, filename, public_key))
+    self.commit()
+
+  def update_time(self, public_key, path, atime, mtime):
+    filename = os.path.basename(path)
+    dirname = os.path.dirname(path)
+    self.execute("UPDATE files SET st_atime={}, st_mtime={} WHERE path='{}' AND filename='{}' AND pub_key='{}'".format(
+        atime, mtime, dirname, filename, public_key))
     self.commit()
     
   def chown(self, public_key, path, uid, gid):
-    self.execute("UPDATE files SET st_uid={}, st_gid={} WHERE path='{}' AND pub_key='{}'".format(
-        uid, gid, path, public_key))
+    filename = os.path.basename(path)
+    dirname = os.path.dirname(path)
+    self.execute("UPDATE files SET st_uid={}, st_gid={} WHERE path='{}' AND filename='{}' AND pub_key='{}'".format(
+        uid, gid, dirname, filename, public_key))
     self.commit()
     
   def getattr(self, public_key, path):
@@ -122,6 +134,13 @@ class FileDatabase(object):
                  "(pub_key, filename, path, st_mode, st_atime, st_mtime, st_ctime) "
                  "VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}')".format(
         public_key, filename, path, S_IFREG | mode, current_time, current_time, current_time))
+    self.commit()
+
+  def delete_directory(self, public_key, path):
+    dirname = os.path.dirname(path)
+    filename = os.path.basename(path)
+    self.execute("DELETE FROM files WHERE "
+                 "pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
     self.commit()
 
   def add_directory(self, public_key, path, mode):
@@ -144,11 +163,11 @@ class FileDatabase(object):
 
 
 class FileSystem(LoggingMixIn, Operations):
-  def __init__(self, key, file_db):
-    self.fd = 0
+  def __init__(self, key, file_db, file_dir):
     self.file_db = file_db
-    #self.root = root
+    self.file_dir = file_dir
     self.key = key
+    self.rwlock = Lock()
 
   def chown(self, path, uid, gid):
     threads.blockingCallFromThread(reactor, self.file_db.chown, self.key, path, uid, gid)
@@ -176,34 +195,38 @@ class FileSystem(LoggingMixIn, Operations):
       return ret
 
   def create(self, path, mode):
-    threads.blockingCallFromThread(reactor, self.file_db.add_file, self.key, os.path.basename(path), path, mode)
-    self.fd += 1
-    return self.fd
+    threads.blockingCallFromThread(reactor, self.file_db.add_file, self.key, os.path.basename(path), os.path.dirname(path), mode)
+    return os.open(os.path.join(self.file_dir, path[1:]), os.O_WRONLY | os.O_CREAT, mode)
 
   def mkdir(self, path, mode):
     threads.blockingCallFromThread(reactor, self.file_db.add_directory, self.key, path, mode)
 
   access = None
-  flush = None
   opendir = None
   release = None
   releasedir = None
 
   def open(self, path, flags):
-    self.fd += 1
-    return self.fd
+    return os.open(os.path.join(self.file_dir, path[1:]), flags)
 
   def read(self, path, size, offset, fh):
-    return ''
+    f = open(os.path.join(self.file_dir, path[1:]), 'r')
+    f.seek(offset, 0)
+    buf = f.read(size)
+    f.close()
+    return buf
 
   #def symlink(self, target, source):
   #  print 'symlink'
+  def flush(self, path, fh):
+    return os.fsync(fh)
 
-  #def utimens(self, path, times=None):
-  #  print 'utimens'
+  def fsync(self, path, datasync, fh):
+    return os.fsync(fh)
 
-  #def write(self, path, data, offset, fh):
-  #  print 'write'
+  def utimens(self, path, times=None):
+    atime, mtime = times if times else (now, now)
+    threads.blockingCallFromThread(reactor, self.file_db.update_time, self.key, path, atime, mtime)
 
   #def readlink(self, path):
   #  print 'readlink'
@@ -211,8 +234,8 @@ class FileSystem(LoggingMixIn, Operations):
   #def rename(self, old, new):
   #  print 'rename'
   #
-  #def rmdir(self, path):
-  #  print 'rmdir'
+  def rmdir(self, path):
+    threads.blockingCallFromThread(reactor, self.file_db.delete_directory, self.key, path)
 
   #def unlink(self, path):
   #  print 'unlink'
@@ -226,9 +249,13 @@ class FileSystem(LoggingMixIn, Operations):
   symlink = None
   truncate = None
   unlink = None
-  utimens = None
-  write = None
 
+  def write(self, path, data, offset, fh):
+    f = open(os.path.join(self.file_dir, path[1:]), 'w')
+    f.seek(offset, 0)
+    f.write(data)
+    f.close()
+    return len(data)
 
 class CommandProcessor(Cmd):
   def __init__(self, file_service):
@@ -499,9 +526,13 @@ if __name__ == '__main__':
   print('> adding \'/\'')
   file_db.add_directory(public_key, '/', 0755)
   l.log('Node running.')
+
+  def fuse_call():
+    fuse = FUSE(FileSystem(public_key, file_db, args.content_directory), args.fs, foreground=True)
+
   if args.fs:
     #fuse = FUSE(FileSystem(public_key, file_db), args.fs, foreground=True)
-    reactor.callInThread(FUSE, FileSystem(public_key, file_db), args.fs, foreground=True)
+    reactor.callInThread(fuse_call)
   #processor = CommandProcessor(file_service)
   #reactor.callInThread(processor.cmdloop)
   print('> running')
