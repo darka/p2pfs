@@ -233,12 +233,10 @@ class FileSystem(LoggingMixIn, Operations):
 
   def read(self, path, size, offset, fh):
     file_path = os.path.join(self.file_dir, path[1:])
-    print file_path
     f = open(file_path, 'r')
     f.seek(offset, 0)
     buf = f.read(size)
     f.close()
-    print '-------> {}, {}'.format(buf.strip(), type(buf))
     return buf
 
   #def symlink(self, target, source):
