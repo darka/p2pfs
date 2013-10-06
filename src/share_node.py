@@ -109,6 +109,13 @@ class FileDatabase(object):
     self.execute("UPDATE files SET st_atime={}, st_mtime={} WHERE path='{}' AND filename='{}' AND pub_key='{}'".format(
         atime, mtime, dirname, filename, public_key))
     self.commit()
+
+  def update_size(self, public_key, path, size):
+    filename = os.path.basename(path)
+    dirname = os.path.dirname(path)
+    self.execute("UPDATE files SET st_size={} WHERE path='{}' AND filename='{}' AND pub_key='{}'".format(
+        size, dirname, filename, public_key))
+    self.commit()
     
   def chown(self, public_key, path, uid, gid):
     filename = os.path.basename(path)
@@ -275,6 +282,7 @@ class FileSystem(LoggingMixIn, Operations):
     f.seek(offset, 0)
     f.write(data)
     f.close()
+    threads.blockingCallFromThread(reactor, self.file_db.update_size, self.key, path, len(data))
     return len(data)
 
 class CommandProcessor(Cmd):
