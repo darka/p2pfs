@@ -128,6 +128,16 @@ class FileDatabase(object):
     result = dict(zip(fields, attrs))
     return result
 
+  def rename(self, public_key, old_path, new_path):
+    old_dirname = os.path.dirname(old_path)
+    old_filename = os.path.basename(old_path)
+    new_dirname = os.path.dirname(new_path)
+    new_filename = os.path.basename(new_path)
+    current_time = int(time.time())
+    self.execute("UPDATE files SET path='{}', filename='{}' WHERE path='{}' AND filename='{}'".format(
+        new_dirname, new_filename, old_dirname, old_filename))
+    self.commit()
+
   def add_file(self, public_key, filename, path, mode):
     current_time = int(time.time())
     self.execute("INSERT INTO files"
@@ -167,13 +177,18 @@ class FileSystem(LoggingMixIn, Operations):
     self.file_db = file_db
     self.file_dir = file_dir
     self.key = key
-    self.rwlock = Lock()
+
+  def __call__(self, op, *args):
+    print '->', op, (' '.join(str(arg) for arg in args) if args else '')
+    ret = getattr(self, op)(*args)
+    return ret
 
   def chown(self, path, uid, gid):
     threads.blockingCallFromThread(reactor, self.file_db.chown, self.key, path, uid, gid)
 
   def chmod(self, path, mode):
     threads.blockingCallFromThread(reactor, self.file_db.chmod, self.key, path, mode)
+    return 0
 
   def getattr(self, path, fh=None):
     result = threads.blockingCallFromThread(
@@ -183,8 +198,8 @@ class FileSystem(LoggingMixIn, Operations):
     else:
       raise FuseOSError(ENOENT)
 
-  getxattr = None
-  listxattr = None
+  #getxattr = None
+  #listxattr = None
 
   def readdir(self, path, fh):
     contents = threads.blockingCallFromThread(reactor, self.file_db.list_directory, self.key, path)
@@ -201,28 +216,33 @@ class FileSystem(LoggingMixIn, Operations):
   def mkdir(self, path, mode):
     threads.blockingCallFromThread(reactor, self.file_db.add_directory, self.key, path, mode)
 
-  access = None
-  opendir = None
-  release = None
-  releasedir = None
+  #access = None
+  #opendir = None
+  #release = None
+  #releasedir = None
 
   def open(self, path, flags):
     return os.open(os.path.join(self.file_dir, path[1:]), flags)
 
   def read(self, path, size, offset, fh):
-    f = open(os.path.join(self.file_dir, path[1:]), 'r')
+    file_path = os.path.join(self.file_dir, path[1:])
+    print file_path
+    f = open(file_path, 'r')
     f.seek(offset, 0)
     buf = f.read(size)
     f.close()
+    print '-------> {}, {}'.format(buf.strip(), type(buf))
     return buf
 
   #def symlink(self, target, source):
   #  print 'symlink'
   def flush(self, path, fh):
-    return os.fsync(fh)
+    return 0
+    #return os.fsync(fh)
 
   def fsync(self, path, datasync, fh):
-    return os.fsync(fh)
+    return 0
+    #return os.fsync(fh)
 
   def utimens(self, path, times=None):
     atime, mtime = times if times else (now, now)
@@ -231,23 +251,23 @@ class FileSystem(LoggingMixIn, Operations):
   #def readlink(self, path):
   #  print 'readlink'
 
-  #def rename(self, old, new):
-  #  print 'rename'
-  #
+  def rename(self, old, new):
+    threads.blockingCallFromThread(reactor, self.file_db.rename, self.key, old, new)
+  
   def rmdir(self, path):
     threads.blockingCallFromThread(reactor, self.file_db.delete_directory, self.key, path)
 
   #def unlink(self, path):
   #  print 'unlink'
 
-  #def truncate(self, path, length, fh=None):
-  #  print 'truncate'
+  def truncate(self, path, length, fh=None):
+    with open(os.path.join(self.file_dir, path[1:]), 'r+') as f:
+      f.truncate(length)
 
   def statfs(self, path):
     return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
   
   symlink = None
-  truncate = None
   unlink = None
 
   def write(self, path, data, offset, fh):
