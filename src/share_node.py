@@ -243,11 +243,9 @@ class FileSystem(LoggingMixIn, Operations):
   #  print 'symlink'
   def flush(self, path, fh):
     return 0
-    #return os.fsync(fh)
 
   def fsync(self, path, datasync, fh):
     return 0
-    #return os.fsync(fh)
 
   def utimens(self, path, times=None):
     atime, mtime = times if times else (now, now)
@@ -298,33 +296,42 @@ class CommandProcessor(Cmd):
   def do_search(self, keyword):
     reactor.callFromThread(perform_keyword_search, self.file_service, keyword)
 
+
 class IndexMasterProtocol(LineReceiver):
-  def __init__(self):
+  def connectionMade(self):
     self.setLineMode()
     l.log('Index Master Running')
+    self.buffer = ''
 
   def lineReceived(self, data):
-    self.buffer = ''
-    self.filename = data
-    l.log("Index Master received: {}".format(self.filename))
-    self.destination = os.path.join('/tmp', self.filename)
-    self.setRawMode()
+    l.log('Received: {}'.format(data))
+    self.command = data.split(',')
+    if self.command[0] == 'download':
+      self.filename = self.command[1]
+      l.log("Index Master received: {}".format(self.filename))
+      self.destination = os.path.join(self.factory.file_dir, self.filename)
+      self.setRawMode()
 
   def rawDataReceived(self, data):
     self.buffer += data
 
   def connectionLost(self, reason):
     if len(self.buffer) == 0:
-       l.log("Error! Connection lost :(\n")
-       return
+      l.log("Error! Connection lost :(\n")
+      return
    
     f = open(self.destination, 'w')
     f.write(self.buffer)
     f.close()
 
+
 class UploaderProtocol(LineReceiver):
-  def uploadFile(filename, file_path):
-    self.transport.sendLine(filename)
+  def connectionMade(self):
+    l.log('Connection was made (UploaderProtocol)')
+
+  def uploadFile(self, filename, file_path):
+    l.log("uploadFile protocol working")
+    self.sendLine(','.join(['download', filename]))
     l.log("uploadFile: {} {}".format(filename, file_path))
     f = open(file_path, 'r')
     buf = f.read()
@@ -385,7 +392,7 @@ class FileSharingService():
     # Next lines are magic:
     self.factory = ServerFactory()
     self.factory.protocol = IndexMasterProtocol
-    self.factory.sharePath = '.'
+    self.factory.file_dir = self.file_dir 
     reactor.listenTCP(self.listen_port, self.factory)
 
   def search(self, keyword):
@@ -397,6 +404,7 @@ class FileSharingService():
 
     def uploadFile(protocol):
       if protocol != None:
+        l.log("uploadFile {} {}".format(filename, file_path))
         protocol.uploadFile(filename, file_path)
 
     def uploadFileToPeers(contacts):
@@ -441,7 +449,7 @@ class FileSharingService():
         full_file_path = os.path.join(self.file_dir, filename)
         shutil.copyfile(os.path.join(path, filename), full_file_path)
         df = self.publishFileWithUpload(filename, full_file_path)
-        self.file_db.add_file(key, filename)
+        self.file_db.add_file(key, filename, '/', 0777)
         df.addCallback(publishNextFile)
       else:
         l.log('** done **')
@@ -544,7 +552,7 @@ if __name__ == '__main__':
   file_service = FileSharingService(node, args.port, file_db, args.content_directory)
 
   for directory in args.shared:
-    reactor.callLater(10, file_service.publishDirectory, public_key, directory)
+    reactor.callLater(6, file_service.publishDirectory, public_key, directory)
  
   print('> joining network')
   node.joinNetwork(knownNodes)
@@ -557,10 +565,11 @@ if __name__ == '__main__':
     fuse = FUSE(FileSystem(public_key, file_db, args.content_directory), args.fs, foreground=True)
 
   if args.fs:
-    #fuse = FUSE(FileSystem(public_key, file_db), args.fs, foreground=True)
     reactor.callInThread(fuse_call)
+
   #processor = CommandProcessor(file_service)
   #reactor.callInThread(processor.cmdloop)
+
   print('> running')
   reactor.run()
 
