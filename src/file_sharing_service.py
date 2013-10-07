@@ -21,7 +21,7 @@ class FileSharingService():
 
     self._setupTCPNetworking()
     if not self.file_db.new:
-      reactor.callLater(7, self.download, self.key, self.file_db.db_filename)
+      reactor.callLater(7, self.download, self.file_db.db_filename, self.key)
       reactor.callLater(14, self.file_db.ready, self)
     else:
       self.file_db.ready(self)
@@ -105,21 +105,20 @@ class FileSharingService():
   def download(self, path, key):
     filename = os.path.basename(path)
     hash = sha_hash(filename)
+    self.l.log('Downloading: {}'.format(filename))
     
     def getTargetNode(result):
-      targetNodeID = result[hash]
-      df = self.node.findContact(targetNodeID)
-      return df
+      return result.pop()
 
     def getFile(protocol):
       if protocol != None:
-        protocol.request_file(filename, destination, key, hash)
+        protocol.request_file(filename, path, key, hash)
 
     def connectToPeer(contact):
       if contact == None:
         self.l.log("File could not be retrieved.\nThe host that published this file is no longer on-line.\n")
       else:
-        c = ClientCreator(reactor, UploadRequestProtocol)
+        c = ClientCreator(reactor, UploadRequestProtocol, self.l)
         df = c.connectTCP(contact.address, contact.port)
         return df
     
@@ -127,6 +126,4 @@ class FileSharingService():
     df.addCallback(getTargetNode)
     df.addCallback(connectToPeer)
     df.addCallback(getFile)
-    
-
-
+ 

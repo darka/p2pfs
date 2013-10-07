@@ -12,8 +12,8 @@ class FileDatabase(object):
 
   def ready(self, file_service):
     self.file_service = file_service
+    self.conn = sqlite3.connect(self.db_filename)
     if self.new:
-      self.conn = sqlite3.connect(self.db_filename)
       self.create_tables()
     
   def execute(self, command):
@@ -131,5 +131,4 @@ class FileDatabase(object):
     c = self.execute("SELECT filename FROM files WHERE pub_key='{}' AND path='{}'".format(public_key, path))
     rows = c.fetchall()
     return [row[0] for row in rows if row[0]]
-
 

@@ -1,5 +1,6 @@
 from twisted.protocols.basic import LineReceiver
 from helpers import *
+import os
 
 class IndexMasterProtocol(LineReceiver):
   def connectionMade(self):
@@ -17,12 +18,14 @@ class IndexMasterProtocol(LineReceiver):
       self.factory.l.log("Index Master received: {}".format(self.filename))
       self.destination = os.path.join(self.factory.file_dir, self.filename)
       self.setRawMode()
-    elif command[0] == 'upload':
-      if self.factory.file_service.storage.has_key(command[3]):
+    elif self.command[0] == 'upload':
+      if self.factory.file_service.storage.has_key(self.command[3]):
         self.setRawMode()
-        file_path = os.path.join(self.file_dir, command[1])
+        file_path = os.path.join(self.factory.file_dir, self.command[1])
         upload_file(file_path, self.transport)
         self.transport.loseConnection()
+      else:
+        self.factory.l.log('Cannot upload: no such key')
       
   def rawDataReceived(self, data):
     self.buffer += data
@@ -36,9 +39,7 @@ class IndexMasterProtocol(LineReceiver):
         save_buffer(self.buffer, self.destination)
         self.factory.file_service.storage[self.hash] = (self.key, self.filename)
         #self.factory.l.log('Stored({}): {}, {}'.format(self.hash, self.key, self.filename))
-        self.factory.l.log('Stored({}): {}, {}'.format('...', '##', self.filename))
-
-    if self.command[0] == 'upload':
+        self.factory.l.log('Stored: {}'.format(self.filename))
+    elif self.command[0] == 'upload':
       self.factory.l.log('Upload finished')
  
-

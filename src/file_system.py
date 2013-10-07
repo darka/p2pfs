@@ -112,5 +112,3 @@ class FileSystem(LoggingMixIn, Operations):
     threads.blockingCallFromThread(reactor, self.file_db.update_size, self.key, path, len(data))
     return len(data)
 
-
-
