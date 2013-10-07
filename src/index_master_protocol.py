@@ -1,6 +1,7 @@
 from twisted.protocols.basic import LineReceiver
 from helpers import *
 import os
+import binascii
 
 class IndexMasterProtocol(LineReceiver):
   def connectionMade(self):
@@ -14,12 +15,13 @@ class IndexMasterProtocol(LineReceiver):
     if self.command[0] == 'store':
       self.filename = self.command[1]
       self.key = self.command[2]
-      self.hash = self.command[3]
+      self.hash = binascii.unhexlify(self.command[3])
       self.factory.l.log("Index Master received: {}".format(self.filename))
       self.destination = os.path.join(self.factory.file_dir, self.filename)
       self.setRawMode()
     elif self.command[0] == 'upload':
-      if self.factory.file_service.storage.has_key(self.command[3]):
+      self.hash = binascii.unhexlify(self.command[3])
+      if self.factory.file_service.storage.has_key(self.hash):
         self.setRawMode()
         file_path = os.path.join(self.factory.file_dir, self.command[1])
         upload_file(file_path, self.transport)

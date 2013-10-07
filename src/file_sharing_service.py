@@ -112,7 +112,7 @@ class FileSharingService():
 
     def getFile(protocol):
       if protocol != None:
-        protocol.request_file(filename, path, key, hash)
+        return protocol.request_file(filename, path, key, hash)
 
     def connectToPeer(contact):
       if contact == None:
@@ -126,4 +126,5 @@ class FileSharingService():
     df.addCallback(getTargetNode)
     df.addCallback(connectToPeer)
     df.addCallback(getFile)
+    return df
  

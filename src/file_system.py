@@ -12,6 +12,7 @@ class FileSystem(LoggingMixIn, Operations):
     self.file_dir = file_dir
     self.key = key
     self.l = logger
+    self.file_service = file_service
 
   def __call__(self, op, *args):
     print '->', op, (' '.join(str(arg) for arg in args) if args else '')
@@ -57,13 +58,19 @@ class FileSystem(LoggingMixIn, Operations):
   #releasedir = None
 
   def open(self, path, flags):
+    if threads.blockingCallFromThread(reactor, self.file_db.file_exists, self.key, path):
+      file_path = os.path.join(self.file_dir, path[1:])
+      if not os.path.isfile(file_path):
+        # we need to find this file on the dht
+        threads.blockingCallFromThread(reactor, self.file_service.download, file_path, self.key)
+      
     return os.open(os.path.join(self.file_dir, path[1:]), flags)
 
   def read(self, path, size, offset, fh):
     file_path = os.path.join(self.file_dir, path[1:])
     if not os.path.isfile(file_path):
       # we need to find this file on the dht
-      self.file_service.download(path)
+      threads.blockingCallFromThread(reactor, self.file_service.download, file_path, self.key)
     f = open(file_path, 'r')
     f.seek(offset, 0)
     buf = f.read(size)

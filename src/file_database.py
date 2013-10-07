@@ -132,3 +132,10 @@ class FileDatabase(object):
     rows = c.fetchall()
     return [row[0] for row in rows if row[0]]
 
+  def file_exists(self, public_key, path):
+    dirname = os.path.dirname(path)
+    filename = os.path.basename(path)
+    c = self.execute("SELECT filename FROM files WHERE pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
+    rows = c.fetchall()
+    return len(rows) >= 1
+
