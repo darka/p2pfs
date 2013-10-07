@@ -186,7 +186,7 @@ class FileDatabase(object):
 
 
 class FileSystem(LoggingMixIn, Operations):
-  def __init__(self, key, file_db, file_dir):
+  def __init__(self, key, file_db, file_service, file_dir):
     self.file_db = file_db
     self.file_dir = file_dir
     self.key = key
@@ -239,6 +239,9 @@ class FileSystem(LoggingMixIn, Operations):
 
   def read(self, path, size, offset, fh):
     file_path = os.path.join(self.file_dir, path[1:])
+    if not os.path.isfile(file_path):
+      # we need to find this file on the dht
+      self.file_service.download(path)
     f = open(file_path, 'r')
     f.seek(offset, 0)
     buf = f.read(size)
@@ -318,7 +321,9 @@ class IndexMasterProtocol(LineReceiver):
       l.log("Index Master received: {}".format(self.filename))
       self.destination = os.path.join(self.factory.file_dir, self.filename)
       self.setRawMode()
-
+    elif command[0] == 'take_yours':
+      
+      
   def rawDataReceived(self, data):
     self.buffer += data
 
@@ -335,6 +340,16 @@ class IndexMasterProtocol(LineReceiver):
       self.factory.file_service.storage[self.hash] = (self.key, self.filename)
       l.log('Stored({}): {}, {}'.format(self.hash, self.key, self.filename))
     
+
+class UploaderOwnerProtocol(LineReceiver):
+  def connectionMade(self):
+    l.log('Connection was made (UploaderOwnerProtocol)')
+
+  def requestFile(self, filename, file_path, key, hash):
+    l.log("uploadFile protocol working")
+    self.sendLine(','.join(['take_yours', filename, key, hash]))
+    self.transport.loseConnection()
+    l.log('finished requesting')
 
 
 class UploaderProtocol(LineReceiver):
@@ -472,7 +487,8 @@ class FileSharingService():
       self.file_db.add_file(key, filename, '/', 0777)
     return df
 
-  def downloadFile(self, filename, destination):
+  def download(self, path):
+    filename = os.path.basename(path)
     key = sha_hash(filename)
     
     def getTargetNode(result):
@@ -486,7 +502,7 @@ class FileSharingService():
       if contact == None:
         l.log("File could not be retrieved.\nThe host that published this file is no longer on-line.\n")
       else:
-        c = ClientCreator(reactor, FileGetter)
+        c = ClientCreator(reactor, UploaderOwnerProtocol)
         df = c.connectTCP(contact.address, contact.port)
         return df
     
@@ -576,7 +592,7 @@ if __name__ == '__main__':
   l.log('Node running.')
 
   def fuse_call():
-    fuse = FUSE(FileSystem(public_key, file_db, args.content_directory), args.fs, foreground=True)
+    fuse = FUSE(FileSystem(public_key, file_db, file_service, args.content_directory), args.fs, foreground=True)
 
   if args.fs:
     reactor.callInThread(fuse_call)
