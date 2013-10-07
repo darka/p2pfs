@@ -99,12 +99,12 @@ class FileDatabase(object):
         new_dirname, new_filename, old_dirname, old_filename))
     self.commit()
 
-  def add_file(self, public_key, filename, path, mode):
+  def add_file(self, public_key, filename, path, mode, size):
     current_time = int(time.time())
     self.execute("INSERT INTO files"
-                 "(pub_key, filename, path, st_mode, st_atime, st_mtime, st_ctime) "
-                 "VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}')".format(
-        public_key, filename, path, S_IFREG | mode, current_time, current_time, current_time))
+                 "(pub_key, filename, path, st_mode, st_atime, st_mtime, st_ctime, st_size) "
+                 "VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}', {})".format(
+        public_key, filename, path, S_IFREG | mode, current_time, current_time, current_time, size))
     self.commit()
 
   def delete_directory(self, public_key, path):

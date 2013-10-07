@@ -97,8 +97,9 @@ class FileSharingService():
   def publish_file(self, key, filename, full_file_path, add_to_database=False):
     self.l.log('--> {}'.format(filename))
     df = self.publishFileWithUpload(filename, full_file_path)
+    size = os.path.getsize(full_file_path)
     if add_to_database:
-      self.file_db.add_file(key, filename, '/', 0777)
+      self.file_db.add_file(key, filename, '/', 0777, size)
     return df
 
   def download(self, path, key):
