@@ -59,10 +59,15 @@ class Logger(object):
 l = Logger()
 
 class FileDatabase(object):
-  def __init__(self, filename):
-    self.conn = sqlite3.connect(filename)
-    self.create_tables()
+  def __init__(self, key, filename):
+    self.key = key
+    self.db_filename = filename
 
+  def ready(self, file_service):
+    self.file_service = file_service
+    self.conn = sqlite3.connect(self.db_filename)
+    self.create_tables()
+    
   def execute(self, command):
     l.log(command)
     c = self.conn.cursor()
@@ -71,6 +76,7 @@ class FileDatabase(object):
 
   def commit(self):
     self.conn.commit()
+    self.file_service.publish_file(self.key, os.path.basename(self.db_filename), self.db_filename)
     
   def create_tables(self):
     try:
@@ -305,9 +311,10 @@ class IndexMasterProtocol(LineReceiver):
   def lineReceived(self, data):
     l.log('Received: {}'.format(data))
     self.command = data.split(',')
-    if self.command[0] == 'download':
+    if self.command[0] == 'store':
       self.filename = self.command[1]
       self.key = self.command[2]
+      self.hash = self.command[3]
       l.log("Index Master received: {}".format(self.filename))
       self.destination = os.path.join(self.factory.file_dir, self.filename)
       self.setRawMode()
@@ -320,20 +327,23 @@ class IndexMasterProtocol(LineReceiver):
       l.log("Error! Connection lost :(\n")
       return
    
-    if self.command[0] == 'download':
-      f = open(self.destination, 'w')
-      f.write(self.buffer)
-      f.close()
-      self.factory.file_db.add_file(self.key, self.filename, '/', 0777)
+    f = open(self.destination, 'w')
+    f.write(self.buffer)
+    f.close()
+
+    if self.command[0] == 'store':
+      self.factory.file_service.storage[self.hash] = (self.key, self.filename)
+      l.log('Stored({}): {}, {}'.format(self.hash, self.key, self.filename))
+    
 
 
 class UploaderProtocol(LineReceiver):
   def connectionMade(self):
     l.log('Connection was made (UploaderProtocol)')
 
-  def uploadFile(self, filename, file_path, key):
+  def uploadFile(self, filename, file_path, key, hash):
     l.log("uploadFile protocol working")
-    self.sendLine(','.join(['download', filename, key]))
+    self.sendLine(','.join(['store', filename, key, hash]))
     f = open(file_path, 'r')
     buf = f.read()
     self.transport.write(buf)
@@ -384,7 +394,9 @@ class FileSharingService():
     self.node = node
     self.listen_port = listen_port
     self.file_db = file_db
+    self.file_db.ready(self)
     self.file_dir = file_dir
+    self.storage = {}
     self.key = key
     
     self._setupTCPNetworking()
@@ -395,6 +407,7 @@ class FileSharingService():
     # Next lines are magic:
     self.factory = ServerFactory()
     self.factory.protocol = IndexMasterProtocol
+    self.factory.file_service = self
     self.factory.file_dir = self.file_dir 
     self.factory.file_db = self.file_db 
     self.factory.key = self.key 
@@ -410,7 +423,7 @@ class FileSharingService():
     def uploadFile(protocol):
       if protocol != None:
         l.log("uploadFile {} {}".format(filename, file_path))
-        protocol.uploadFile(filename, file_path, self.key)
+        protocol.uploadFile(filename, file_path, self.key, key)
 
     def uploadFileToPeers(contacts):
       outerDf = defer.Deferred()
@@ -447,17 +460,17 @@ class FileSharingService():
     
     l.log('files: {}'.format(len(files)))
 
-    def publishNextFile(filename):
-      l.log('--> {}'.format(filename))
+    for filename in files:
       full_file_path = os.path.join(self.file_dir, filename)
       shutil.copyfile(os.path.join(path, filename), full_file_path)
-      df = self.publishFileWithUpload(filename, full_file_path)
+      self.publish_file(key, filename, full_file_path, add_to_database=True)
+
+  def publish_file(self, key, filename, full_file_path, add_to_database=False):
+    l.log('--> {}'.format(filename))
+    df = self.publishFileWithUpload(filename, full_file_path)
+    if add_to_database:
       self.file_db.add_file(key, filename, '/', 0777)
-      return df
-
-    for filename in files:
-      publishNextFile(filename)
-
+    return df
 
   def downloadFile(self, filename, destination):
     key = sha_hash(filename)
@@ -516,7 +529,6 @@ if __name__ == '__main__':
   print('> opening log file')
   l.set_output(open(args.log_filename, 'w'))
   
-  file_db = FileDatabase(args.db_filename)
   if args.address:
     ip, port = args.address.split(':')
     port = int(port)
@@ -550,6 +562,7 @@ if __name__ == '__main__':
   node.invalidKeywords.extend(('mp3', 'png', 'jpg', 'txt', 'ogg'))
   node.keywordSplitters.extend(('-', '!'))
 
+  file_db = FileDatabase(public_key, args.db_filename)
   file_service = FileSharingService(node, args.port, public_key, file_db, args.content_directory)
 
   for directory in args.shared:
