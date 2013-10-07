@@ -332,12 +332,12 @@ class UploaderProtocol(LineReceiver):
   def uploadFile(self, filename, file_path):
     l.log("uploadFile protocol working")
     self.sendLine(','.join(['download', filename]))
-    l.log("uploadFile: {} {}".format(filename, file_path))
     f = open(file_path, 'r')
     buf = f.read()
     self.transport.write(buf)
     f.close()
     self.transport.loseConnection()
+    l.log('finished uploading')
 
 #class FileServer(Protocol):
 #  def dataReceived(self, data):
@@ -442,20 +442,16 @@ class FileSharingService():
     
     l.log('files: {}'.format(len(files)))
 
-    def publishNextFile(result=None):
-      if len(files) > 0:
-        filename = files.pop()
-        l.log('--> {}'.format(filename))
-        full_file_path = os.path.join(self.file_dir, filename)
-        shutil.copyfile(os.path.join(path, filename), full_file_path)
-        df = self.publishFileWithUpload(filename, full_file_path)
-        self.file_db.add_file(key, filename, '/', 0777)
-        df.addCallback(publishNextFile)
-      else:
-        l.log('** done **')
-        outerDf.callback(None)
+    def publishNextFile(filename):
+      l.log('--> {}'.format(filename))
+      full_file_path = os.path.join(self.file_dir, filename)
+      shutil.copyfile(os.path.join(path, filename), full_file_path)
+      df = self.publishFileWithUpload(filename, full_file_path)
+      self.file_db.add_file(key, filename, '/', 0777)
+      return df
 
-    publishNextFile()
+    for filename in files:
+      publishNextFile(filename)
 
 
   def downloadFile(self, filename, destination):
