@@ -305,6 +305,17 @@ class CommandProcessor(Cmd):
   def do_search(self, keyword):
     reactor.callFromThread(perform_keyword_search, self.file_service, keyword)
 
+def upload_file(file_path, transport):
+  f = open(file_path, 'r')
+  buf = f.read()
+  transport.write(buf)
+  f.close()
+
+def save_buffer(buffer, destination):
+  f = open(destination, 'w')
+  f.write(buffer)
+  f.close()
+ 
 class IndexMasterProtocol(LineReceiver):
   def connectionMade(self):
     self.setLineMode()
@@ -312,8 +323,8 @@ class IndexMasterProtocol(LineReceiver):
     self.buffer = ''
 
   def lineReceived(self, data):
-    l.log('Received: {}'.format(data))
     self.command = data.split(',')
+    l.log('Received: {}'.format(self.command[0]))
     if self.command[0] == 'store':
       self.filename = self.command[1]
       self.key = self.command[2]
@@ -321,36 +332,52 @@ class IndexMasterProtocol(LineReceiver):
       l.log("Index Master received: {}".format(self.filename))
       self.destination = os.path.join(self.factory.file_dir, self.filename)
       self.setRawMode()
-    elif command[0] == 'take_yours':
-      
+    elif command[0] == 'upload':
+      if self.factory.file_service.storage.has_key(command[3]):
+        self.setRawMode()
+        file_path = os.path.join(self.file_dir, command[1])
+        upload_file(file_path, self.transport)
+        self.transport.loseConnection()
       
   def rawDataReceived(self, data):
     self.buffer += data
 
   def connectionLost(self, reason):
-    if len(self.buffer) == 0:
-      l.log("Error! Connection lost :(\n")
-      return
-   
-    f = open(self.destination, 'w')
-    f.write(self.buffer)
-    f.close()
-
     if self.command[0] == 'store':
-      self.factory.file_service.storage[self.hash] = (self.key, self.filename)
-      l.log('Stored({}): {}, {}'.format(self.hash, self.key, self.filename))
-    
+      if len(self.buffer) == 0:
+        l.log("Error! Connection lost :(\n")
+        return
+      else:
+        save_buffer(self.buffer, self.destination)
+        self.factory.file_service.storage[self.hash] = (self.key, self.filename)
+        #l.log('Stored({}): {}, {}'.format(self.hash, self.key, self.filename))
+        l.log('Stored({}): {}, {}'.format('...', '##', self.filename))
 
-class UploaderOwnerProtocol(LineReceiver):
+    if self.command[0] == 'upload':
+      l.log('Upload finished')
+ 
+class UploadRequestProtocol(LineReceiver):
   def connectionMade(self):
-    l.log('Connection was made (UploaderOwnerProtocol)')
+    l.log('Connection was made (UploadRequestProtocol)')
+    self.buffer = ''
 
-  def requestFile(self, filename, file_path, key, hash):
+  def rawDataReceived(self, data):
+    self.buffer += data
+
+  def request_file(self, filename, file_path, key, hash):
+    self.filename = filename
+    self.file_path = file_path
     l.log("uploadFile protocol working")
-    self.sendLine(','.join(['take_yours', filename, key, hash]))
-    self.transport.loseConnection()
-    l.log('finished requesting')
+    self.sendLine(','.join(['upload', filename, key, hash]))
+    l.log('file request finished')
+    self.setRawMode()
 
+  def connectionLost(self, reason):
+    if len(self.buffer) == 0:
+      l.log("Upload request failed! Downloaded nothing.\n")
+      return
+    save_buffer(self.buffer, self.destination)
+    l.log('Saved buffer to {}'.format(self.destination))
 
 class UploaderProtocol(LineReceiver):
   def connectionMade(self):
@@ -359,10 +386,7 @@ class UploaderProtocol(LineReceiver):
   def uploadFile(self, filename, file_path, key, hash):
     l.log("uploadFile protocol working")
     self.sendLine(','.join(['store', filename, key, hash]))
-    f = open(file_path, 'r')
-    buf = f.read()
-    self.transport.write(buf)
-    f.close()
+    upload_file(file_path, self.transport)
     self.transport.loseConnection()
     l.log('finished uploading')
 
@@ -487,47 +511,40 @@ class FileSharingService():
       self.file_db.add_file(key, filename, '/', 0777)
     return df
 
-  def download(self, path):
+  def download(self, path, key):
     filename = os.path.basename(path)
-    key = sha_hash(filename)
+    hash = sha_hash(filename)
     
     def getTargetNode(result):
-      targetNodeID = result[key]
+      targetNodeID = result[hash]
       df = self.node.findContact(targetNodeID)
       return df
+
     def getFile(protocol):
       if protocol != None:
-        protocol.requestFile(filename, destination)
+        protocol.request_file(filename, destination, key, hash)
+
     def connectToPeer(contact):
       if contact == None:
         l.log("File could not be retrieved.\nThe host that published this file is no longer on-line.\n")
       else:
-        c = ClientCreator(reactor, UploaderOwnerProtocol)
+        c = ClientCreator(reactor, UploadRequestProtocol)
         df = c.connectTCP(contact.address, contact.port)
         return df
     
-    df = self.node.iterativeFindValue(key)
+    df = self.node.iterativeFindValue(hash)
     df.addCallback(getTargetNode)
     df.addCallback(connectToPeer)
     df.addCallback(getFile)
     
 
-def perform_download(file_service, filename, destination):
-  l.log("downloading {} to {}...".format(filename, destination))
-  file_service.downloadFile(filename, destination)
-
-def publish_file(file_service, filename, destination):
-  l.log("downloading {} to {}...".format(filename, destination))
-  file_service.downloadFile(filename, destination)
-
-
-def perform_keyword_search(file_service, keyword):
-  l.log("performing search...")
-  df = file_service.search(keyword)
-  def printKeyword(result):
-    l.log("keyword: {}".format(keyword))
-    l.log("  {}".format(result))
-  df.addCallback(printKeyword)
+#def perform_keyword_search(file_service, keyword):
+#  l.log("performing search...")
+#  df = file_service.search(keyword)
+#  def printKeyword(result):
+#    l.log("keyword: {}".format(keyword))
+#    l.log("  {}".format(result))
+#  df.addCallback(printKeyword)
   
 
 if __name__ == '__main__':
