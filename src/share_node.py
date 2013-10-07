@@ -296,7 +296,6 @@ class CommandProcessor(Cmd):
   def do_search(self, keyword):
     reactor.callFromThread(perform_keyword_search, self.file_service, keyword)
 
-
 class IndexMasterProtocol(LineReceiver):
   def connectionMade(self):
     self.setLineMode()
@@ -308,6 +307,7 @@ class IndexMasterProtocol(LineReceiver):
     self.command = data.split(',')
     if self.command[0] == 'download':
       self.filename = self.command[1]
+      self.key = self.command[2]
       l.log("Index Master received: {}".format(self.filename))
       self.destination = os.path.join(self.factory.file_dir, self.filename)
       self.setRawMode()
@@ -320,18 +320,20 @@ class IndexMasterProtocol(LineReceiver):
       l.log("Error! Connection lost :(\n")
       return
    
-    f = open(self.destination, 'w')
-    f.write(self.buffer)
-    f.close()
+    if self.command[0] == 'download':
+      f = open(self.destination, 'w')
+      f.write(self.buffer)
+      f.close()
+      self.factory.file_db.add_file(self.key, self.filename, '/', 0777)
 
 
 class UploaderProtocol(LineReceiver):
   def connectionMade(self):
     l.log('Connection was made (UploaderProtocol)')
 
-  def uploadFile(self, filename, file_path):
+  def uploadFile(self, filename, file_path, key):
     l.log("uploadFile protocol working")
-    self.sendLine(','.join(['download', filename]))
+    self.sendLine(','.join(['download', filename, key]))
     f = open(file_path, 'r')
     buf = f.read()
     self.transport.write(buf)
@@ -378,11 +380,12 @@ class UploaderProtocol(LineReceiver):
 
 
 class FileSharingService():
-  def __init__(self, node, listen_port, file_db, file_dir):
+  def __init__(self, node, listen_port, key, file_db, file_dir):
     self.node = node
     self.listen_port = listen_port
     self.file_db = file_db
     self.file_dir = file_dir
+    self.key = key
     
     self._setupTCPNetworking()
 
@@ -393,6 +396,8 @@ class FileSharingService():
     self.factory = ServerFactory()
     self.factory.protocol = IndexMasterProtocol
     self.factory.file_dir = self.file_dir 
+    self.factory.file_db = self.file_db 
+    self.factory.key = self.key 
     reactor.listenTCP(self.listen_port, self.factory)
 
   def search(self, keyword):
@@ -405,7 +410,7 @@ class FileSharingService():
     def uploadFile(protocol):
       if protocol != None:
         l.log("uploadFile {} {}".format(filename, file_path))
-        protocol.uploadFile(filename, file_path)
+        protocol.uploadFile(filename, file_path, self.key)
 
     def uploadFileToPeers(contacts):
       outerDf = defer.Deferred()
@@ -545,7 +550,7 @@ if __name__ == '__main__':
   node.invalidKeywords.extend(('mp3', 'png', 'jpg', 'txt', 'ogg'))
   node.keywordSplitters.extend(('-', '!'))
 
-  file_service = FileSharingService(node, args.port, file_db, args.content_directory)
+  file_service = FileSharingService(node, args.port, public_key, file_db, args.content_directory)
 
   for directory in args.shared:
     reactor.callLater(6, file_service.publishDirectory, public_key, directory)
