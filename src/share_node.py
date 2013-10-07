@@ -59,14 +59,16 @@ class Logger(object):
 l = Logger()
 
 class FileDatabase(object):
-  def __init__(self, key, filename):
+  def __init__(self, key, filename, new=False):
     self.key = key
     self.db_filename = filename
+    self.new = new
 
   def ready(self, file_service):
     self.file_service = file_service
-    self.conn = sqlite3.connect(self.db_filename)
-    self.create_tables()
+    if self.new:
+      self.conn = sqlite3.connect(self.db_filename)
+      self.create_tables()
     
   def execute(self, command):
     l.log(command)
@@ -432,15 +434,21 @@ class FileSharingService():
   def __init__(self, node, listen_port, key, file_db, file_dir):
     self.node = node
     self.listen_port = listen_port
-    self.file_db = file_db
-    self.file_db.ready(self)
     self.file_dir = file_dir
+
     self.storage = {}
     self.key = key
     
-    self._setupTCPNetworking()
+    self.file_db = file_db
 
-    self.REPLICA_COUNT = 2
+    if not self.file_db.new:
+      reactor.callLater(20, self.download, self.key, self.file_db.db_filename)
+      #self.download(self.key, self.file_db.db_filename)
+
+    self._setupTCPNetworking()
+    self.file_db.ready(self)
+
+    #self.REPLICA_COUNT = 2
 
   def _setupTCPNetworking(self):
     # Next lines are magic:
@@ -555,6 +563,7 @@ if __name__ == '__main__':
   parser.add_argument('--share', dest='shared', default=[], nargs='*')
   parser.add_argument('--dir', dest='content_directory', required=True)
   parser.add_argument('--db', dest='db_filename', required=True)
+  parser.add_argument('--newdb', default=False, action='store_true')
   parser.add_argument('--log', dest='log_filename', default=None)
   parser.add_argument('--fs', default=None)
   args = parser.parse_args()
@@ -595,7 +604,7 @@ if __name__ == '__main__':
   node.invalidKeywords.extend(('mp3', 'png', 'jpg', 'txt', 'ogg'))
   node.keywordSplitters.extend(('-', '!'))
 
-  file_db = FileDatabase(public_key, args.db_filename)
+  file_db = FileDatabase(public_key, args.db_filename, args.newdb)
   file_service = FileSharingService(node, args.port, public_key, file_db, args.content_directory)
 
   for directory in args.shared:
@@ -604,8 +613,9 @@ if __name__ == '__main__':
   print('> joining network')
   node.joinNetwork(knownNodes)
 
-  print('> adding \'/\'')
-  file_db.add_directory(public_key, '/', 0755)
+  if args.newdb:
+    print('> adding \'/\'')
+    file_db.add_directory(public_key, '/', 0755)
   l.log('Node running.')
 
   def fuse_call():
