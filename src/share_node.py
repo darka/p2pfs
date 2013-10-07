@@ -22,7 +22,6 @@ from logger import *
 
 from twisted.internet import task
 from twisted.internet import defer
-from twisted.internet import threads
 
 
 from entangled.kademlia.datastore import SQLiteDataStore
@@ -95,6 +94,8 @@ def main():
   l.log('Node running.')
 
   def fuse_call():
+    time.sleep(20)
+    print('> filesystem running')
     fuse = FUSE(FileSystem(l, public_key, file_db, file_service, args.content_directory), args.fs, foreground=True)
 
   if args.fs:
@@ -103,7 +104,7 @@ def main():
   #processor = CommandProcessor(file_service)
   #reactor.callInThread(processor.cmdloop)
 
-  print('> running')
+  print('> reactor running')
   reactor.run()
 
 if __name__ == '__main__':

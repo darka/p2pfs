@@ -4,6 +4,8 @@ from twisted.internet import defer
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, ServerFactory, ClientCreator
 from index_master_protocol import *
+from upload_protocol import *
+from upload_request_protocol import *
 
 class FileSharingService():
   def __init__(self, logger, node, listen_port, key, file_db, file_dir):
@@ -17,12 +19,14 @@ class FileSharingService():
     
     self.file_db = file_db
 
+    self._setupTCPNetworking()
     if not self.file_db.new:
-      reactor.callLater(20, self.download, self.key, self.file_db.db_filename)
+      reactor.callLater(7, self.download, self.key, self.file_db.db_filename)
+      reactor.callLater(14, self.file_db.ready, self)
+    else:
+      self.file_db.ready(self)
       #self.download(self.key, self.file_db.db_filename)
 
-    self._setupTCPNetworking()
-    self.file_db.ready(self)
 
     #self.REPLICA_COUNT = 2
 
@@ -34,6 +38,7 @@ class FileSharingService():
     self.factory.file_dir = self.file_dir 
     self.factory.file_db = self.file_db 
     self.factory.key = self.key 
+    self.factory.l = self.l
     reactor.listenTCP(self.listen_port, self.factory)
 
   def search(self, keyword):
@@ -54,7 +59,7 @@ class FileSharingService():
         self.l.log("Could not reach any peers.")
       else:
         for contact in contacts:
-          c = ClientCreator(reactor, UploadProtocol)
+          c = ClientCreator(reactor, UploadProtocol, self.l)
           df = c.connectTCP(contact.address, contact.port)
           df.addCallback(uploadFile)
           self.l.log("Will upload '{}' to: {}".format(file_path, contact))
@@ -73,6 +78,7 @@ class FileSharingService():
     outerDf = defer.Deferred()
 
     self.factory.sharePath = path
+    self.factory.l = self.l
 
     for entry in os.walk(path):
       for file in entry[2]:
