@@ -27,6 +27,7 @@ class FileSharingService():
       reactor.callLater(25, self.query_and_update_db_by_metadata)
     else:
       self.file_db.ready(self)
+      reactor.callLater(25, self.query_and_update_db_by_metadata)
       #self.download(self.key, self.file_db.db_filename)
 
   def query_and_update_db_by_metadata(self):
@@ -36,6 +37,8 @@ class FileSharingService():
       if mtime < metadata:
         print 'will redownload: {} ({} < {})'.format(self.file_db.db_filename, mtime, metadata)
         self.download(self.file_db.db_filename, self.key)
+    def handleError(_):
+      print('will update nothing')
     df.addCallback(handleMetadata)
     reactor.callLater(20, self.query_and_update_db_by_metadata)
 
