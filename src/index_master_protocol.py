@@ -25,7 +25,7 @@ class IndexMasterProtocol(LineReceiver):
       self.hash = binascii.unhexlify(self.command[2])
       if self.factory.file_service.storage.has_key(self.hash):
         print self.factory.file_service.storage
-        self.sendLine(self.factory.file_service.storage[self.hash]['mtime'])
+        self.sendLine(str(self.factory.file_service.storage[self.hash]['mtime']))
         self.transport.loseConnection()
       else:
         self.factory.l.log('Cannot send metadata: no such key')
@@ -50,7 +50,7 @@ class IndexMasterProtocol(LineReceiver):
         return
       else:
         save_buffer(self.buffer, self.destination)
-        self.factory.file_service.storage[self.hash] = {'key':self.key, 'filename':self.filename, 'mtime':self.mtime}
+        self.factory.file_service.storage[self.hash] = {'key':self.key, 'filename':self.filename, 'mtime':int(self.mtime)}
         #self.factory.l.log('Stored({}): {}, {}'.format(self.hash, self.key, self.filename))
         self.factory.l.log('Stored: {}'.format(self.filename))
     elif self.command[0] == 'tell_metadata':

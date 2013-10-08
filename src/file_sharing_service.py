@@ -31,9 +31,12 @@ class FileSharingService():
 
   def query_and_update_db_by_metadata(self):
     df = self.get_metadata(self.file_db.db_filename, self.key)
-    def printMetadata(metadata):
-      print 'Got: {}'.format(metadata)
-    df.addCallback(printMetadata)
+    def handleMetadata(metadata):
+      mtime = self.file_db.get_db_mtime(self.key)
+      if mtime < metadata:
+        print 'will redownload: {} ({} < {})'.format(self.file_db.db_filename, mtime, metadata)
+        self.download(self.file_db.db_filename, self.key)
+    df.addCallback(handleMetadata)
     reactor.callLater(20, self.query_and_update_db_by_metadata)
 
   def _setupTCPNetworking(self):

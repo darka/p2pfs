@@ -24,5 +24,5 @@ class MetadataRequestProtocol(LineReceiver):
     if len(self.buffer) == 0:
       self.l.log("Metadata request failed! Got nothing.\n")
       return
-    self.df.callback(self.buffer)
+    self.df.callback(int(self.buffer))
 
