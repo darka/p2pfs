@@ -24,7 +24,8 @@ class FileDatabase(object):
 
   def commit(self):
     self.conn.commit()
-    self.file_service.publish_file(self.key, os.path.basename(self.db_filename), self.db_filename)
+    m_time = self.get_db_mtime(self.key)
+    self.file_service.publish_file(self.key, os.path.basename(self.db_filename), self.db_filename, m_time)
     
   def create_tables(self):
     try:
@@ -43,7 +44,14 @@ class FileDatabase(object):
           "st_mtime integer DEFAULT 0, "
           "st_ctime integer DEFAULT 0, "
           "st_nlink integer DEFAULT 1, "
-          "st_size integer DEFAULT 0)")
+          "st_size integer DEFAULT 0, "
+          "is_internal integer DEFAULT 0)")
+    current_time = int(time.time())
+    self.execute("INSERT INTO files"
+                 "(pub_key, is_internal, filename, path, st_mode, st_atime, st_mtime, st_ctime, st_size) "
+                 "VALUES('{}', 1, 'DB', 'DB', {}, {}, {}, {}, {})".format(
+        self.key, 0, current_time, current_time, current_time, 0))
+
     self.commit()
 
   def chmod(self, public_key, path, mode):
@@ -55,13 +63,31 @@ class FileDatabase(object):
     mode = old_mode | mode
     self.execute("UPDATE files SET st_mode={} WHERE path='{}' AND filename='{}' AND pub_key='{}'".format(
         mode, dirname, filename, public_key))
+    self.update_db_time()
     self.commit()
 
+  def get_file_mtime(self, public_key, filename):
+    self.l.log('Retrieving mtime for: {}'.format(filename))
+    c = self.execute("SELECT st_mtime FROM files WHERE pub_key='{}' AND filename='{}'".format(public_key, filename))
+    ret = c.fetchone()
+    self.l.log('Result: {}'.format(str(ret)))
+    if not ret: return 0
+    else: return ret[0]
+    
+  def get_db_mtime(self, public_key):
+    self.l.log('Retrieving db mtime')
+    c = self.execute("SELECT st_mtime FROM files WHERE pub_key='{}' AND path='DB' AND filename='DB' AND is_internal=1".format(public_key))
+    ret = c.fetchone()
+    self.l.log('Result: {}'.format(str(ret)))
+    if not ret: return 0
+    else: return ret[0]
+    
   def update_time(self, public_key, path, atime, mtime):
     filename = os.path.basename(path)
     dirname = os.path.dirname(path)
     self.execute("UPDATE files SET st_atime={}, st_mtime={} WHERE path='{}' AND filename='{}' AND pub_key='{}'".format(
         atime, mtime, dirname, filename, public_key))
+    self.update_db_time()
     self.commit()
 
   def update_size(self, public_key, path, size):
@@ -69,6 +95,7 @@ class FileDatabase(object):
     dirname = os.path.dirname(path)
     self.execute("UPDATE files SET st_size={} WHERE path='{}' AND filename='{}' AND pub_key='{}'".format(
         size, dirname, filename, public_key))
+    self.update_db_time()
     self.commit()
     
   def chown(self, public_key, path, uid, gid):
@@ -76,6 +103,7 @@ class FileDatabase(object):
     dirname = os.path.dirname(path)
     self.execute("UPDATE files SET st_uid={}, st_gid={} WHERE path='{}' AND filename='{}' AND pub_key='{}'".format(
         uid, gid, dirname, filename, public_key))
+    self.update_db_time()
     self.commit()
     
   def getattr(self, public_key, path):
@@ -97,6 +125,7 @@ class FileDatabase(object):
     current_time = int(time.time())
     self.execute("UPDATE files SET path='{}', filename='{}' WHERE path='{}' AND filename='{}'".format(
         new_dirname, new_filename, old_dirname, old_filename))
+    self.update_db_time()
     self.commit()
 
   def add_file(self, public_key, filename, path, mode, size):
@@ -105,6 +134,7 @@ class FileDatabase(object):
                  "(pub_key, filename, path, st_mode, st_atime, st_mtime, st_ctime, st_size) "
                  "VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}', {})".format(
         public_key, filename, path, S_IFREG | mode, current_time, current_time, current_time, size))
+    self.update_db_time()
     self.commit()
 
   def delete_directory(self, public_key, path):
@@ -112,7 +142,12 @@ class FileDatabase(object):
     filename = os.path.basename(path)
     self.execute("DELETE FROM files WHERE "
                  "pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
+    self.update_db_time()
     self.commit()
+
+  def update_db_time(self):
+    current_time = int(time.time())
+    self.execute("UPDATE files SET st_mtime={}, st_ctime={} WHERE filename='DB' AND path='DB' AND is_internal=1".format(current_time, current_time))
 
   def add_directory(self, public_key, path, mode):
     current_time = int(time.time())
@@ -125,6 +160,7 @@ class FileDatabase(object):
     if path != '/':
       self.execute("UPDATE files SET st_nlink = st_nlink + 1 WHERE path='{}' AND pub_key='{}'".format(
         '/', public_key))
+    self.update_db_time()
     self.commit()
 
   def list_directory(self, public_key, path):

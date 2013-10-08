@@ -5,6 +5,7 @@ from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, ServerFactory, ClientCreator
 from index_master_protocol import *
 from upload_protocol import *
+from metadata_request_protocol import *
 from upload_request_protocol import *
 
 class FileSharingService():
@@ -23,12 +24,17 @@ class FileSharingService():
     if not self.file_db.new:
       reactor.callLater(7, self.download, self.file_db.db_filename, self.key)
       reactor.callLater(14, self.file_db.ready, self)
+      reactor.callLater(25, self.query_and_update_db_by_metadata)
     else:
       self.file_db.ready(self)
       #self.download(self.key, self.file_db.db_filename)
 
-
-    #self.REPLICA_COUNT = 2
+  def query_and_update_db_by_metadata(self):
+    df = self.get_metadata(self.file_db.db_filename, self.key)
+    def printMetadata(metadata):
+      print 'Got: {}'.format(metadata)
+    df.addCallback(printMetadata)
+    reactor.callLater(20, self.query_and_update_db_by_metadata)
 
   def _setupTCPNetworking(self):
     # Next lines are magic:
@@ -44,19 +50,19 @@ class FileSharingService():
   def search(self, keyword):
     return self.node.searchForKeywords(keyword)
   
-  def publishFileWithUpload(self, filename, file_path):
+  def publishFileWithUpload(self, filename, file_path, m_time):
     key = sha_hash(filename)
     self.l.log('publishing file {} ({})'.format(filename, file_path))
 
     def uploadFile(protocol):
       if protocol != None:
         self.l.log("uploadFile {} {}".format(filename, file_path))
-        protocol.uploadFile(filename, file_path, self.key, key)
+        protocol.uploadFile(filename, file_path, self.key, key, m_time)
 
     def uploadFileToPeers(contacts):
       outerDf = defer.Deferred()
       if not contacts:
-        self.l.log("Could not reach any peers.")
+        self.l.log("Could not reach any peers. ({})".format(str(contacts)))
       else:
         for contact in contacts:
           c = ClientCreator(reactor, UploadProtocol, self.l)
@@ -92,16 +98,43 @@ class FileSharingService():
     for filename in files:
       full_file_path = os.path.join(self.file_dir, filename)
       shutil.copyfile(os.path.join(path, filename), full_file_path)
-      self.publish_file(key, filename, full_file_path, add_to_database=True)
-
-  def publish_file(self, key, filename, full_file_path, add_to_database=False):
-    self.l.log('--> {}'.format(filename))
-    df = self.publishFileWithUpload(filename, full_file_path)
-    size = os.path.getsize(full_file_path)
-    if add_to_database:
+      
+      size = os.path.getsize(full_file_path)
       self.file_db.add_file(key, filename, '/', 0777, size)
+      m_time = self.file_db.get_file_mtime(self.key, filename)
+      self.publish_file(key, filename, full_file_path, m_time)
+
+  def publish_file(self, key, filename, full_file_path, m_time, add_to_database=False):
+    self.l.log('--> {}'.format(filename))
+    df = self.publishFileWithUpload(filename, full_file_path, m_time)
     return df
 
+  def get_metadata(self, path, key):
+    filename = os.path.basename(path)
+    hash = sha_hash(filename)
+    self.l.log('Getting metadata for: {}'.format(filename))
+    
+    def getTargetNode(result):
+      return result.pop()
+
+    def getFile(protocol):
+      if protocol != None:
+        return protocol.request_metadata(filename, key, hash)
+
+    def connectToPeer(contact):
+      if contact == None:
+        self.l.log("The host that published this file is no longer on-line.\n")
+      else:
+        c = ClientCreator(reactor, MetadataRequestProtocol, self.l)
+        df = c.connectTCP(contact.address, contact.port)
+        return df
+    
+    df = self.node.iterativeFindValue(hash)
+    df.addCallback(getTargetNode)
+    df.addCallback(connectToPeer)
+    df.addCallback(getFile)
+    return df
+ 
   def download(self, path, key):
     filename = os.path.basename(path)
     hash = sha_hash(filename)

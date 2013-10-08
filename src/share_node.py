@@ -79,32 +79,36 @@ def main():
   node.invalidKeywords.extend(('mp3', 'png', 'jpg', 'txt', 'ogg'))
   node.keywordSplitters.extend(('-', '!'))
 
-  file_db = FileDatabase(l, public_key, args.db_filename, args.newdb)
-  file_service = FileSharingService(l, node, args.port, public_key, file_db, args.content_directory)
-
-  for directory in args.shared:
-    reactor.callLater(6, file_service.publishDirectory, public_key, directory)
- 
   print('> joining network')
   node.joinNetwork(knownNodes)
 
-  if args.newdb:
-    print('> adding \'/\'')
-    file_db.add_directory(public_key, '/', 0755)
-  l.log('Node running.')
-
-  def fuse_call():
-    time.sleep(20)
-    print('> filesystem running')
-    fuse = FUSE(FileSystem(l, public_key, file_db, file_service, args.content_directory), args.fs, foreground=True)
-
-  if args.fs:
-    reactor.callInThread(fuse_call)
+  def prepare():
+    file_db = FileDatabase(l, public_key, args.db_filename, args.newdb)
+    file_service = FileSharingService(l, node, args.port, public_key, file_db, args.content_directory)
+  
+    for directory in args.shared:
+      reactor.callLater(6, file_service.publishDirectory, public_key, directory)
+   
+  
+    if args.newdb:
+      print('> adding \'/\'')
+      file_db.add_directory(public_key, '/', 0755)
+    l.log('Node running.')
+  
+    def fuse_call():
+      time.sleep(20)
+      print('> filesystem running')
+      fuse = FUSE(FileSystem(l, public_key, file_db, file_service, args.content_directory), args.fs, foreground=True)
+  
+    if args.fs:
+      reactor.callInThread(fuse_call)
 
   #processor = CommandProcessor(file_service)
   #reactor.callInThread(processor.cmdloop)
 
   print('> reactor running')
+  reactor.callLater(2, prepare)
+
   reactor.run()
 
 if __name__ == '__main__':

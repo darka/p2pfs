@@ -9,9 +9,9 @@ class UploadProtocol(LineReceiver):
   def connectionMade(self):
     self.l.log('Connection was made (UploadProtocol)')
 
-  def uploadFile(self, filename, file_path, key, hash):
-    self.l.log("uploadFile protocol working")
-    self.sendLine(','.join(['store', filename, key, binascii.hexlify(hash)]))
+  def uploadFile(self, filename, file_path, key, hash, mtime):
+    self.l.log("uploadFile protocol working, mtime: {}".format(mtime))
+    self.sendLine(','.join(['store', filename, key, binascii.hexlify(hash), str(mtime)]))
     upload_file(file_path, self.transport)
     self.transport.loseConnection()
     self.l.log('finished uploading')

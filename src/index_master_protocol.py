@@ -16,10 +16,21 @@ class IndexMasterProtocol(LineReceiver):
       self.filename = self.command[1]
       self.key = self.command[2]
       self.hash = binascii.unhexlify(self.command[3])
+      self.mtime = self.command[4]
       self.factory.l.log("Index Master received: {}".format(self.filename))
       self.destination = os.path.join(self.factory.file_dir, self.filename)
       self.setRawMode()
+    elif self.command[0] == 'tell_metadata':
+      path = self.command[1]
+      self.hash = binascii.unhexlify(self.command[2])
+      if self.factory.file_service.storage.has_key(self.hash):
+        print self.factory.file_service.storage
+        self.sendLine(self.factory.file_service.storage[self.hash]['mtime'])
+        self.transport.loseConnection()
+      else:
+        self.factory.l.log('Cannot send metadata: no such key')
     elif self.command[0] == 'upload':
+      self.factory.l.log('upload: {}'.format(self.command[1]))
       self.hash = binascii.unhexlify(self.command[3])
       if self.factory.file_service.storage.has_key(self.hash):
         self.setRawMode()
@@ -39,9 +50,11 @@ class IndexMasterProtocol(LineReceiver):
         return
       else:
         save_buffer(self.buffer, self.destination)
-        self.factory.file_service.storage[self.hash] = (self.key, self.filename)
+        self.factory.file_service.storage[self.hash] = {'key':self.key, 'filename':self.filename, 'mtime':self.mtime}
         #self.factory.l.log('Stored({}): {}, {}'.format(self.hash, self.key, self.filename))
         self.factory.l.log('Stored: {}'.format(self.filename))
+    elif self.command[0] == 'tell_metadata':
+      self.factory.l.log('Metadata sent')
     elif self.command[0] == 'upload':
       self.factory.l.log('Upload finished')
  
