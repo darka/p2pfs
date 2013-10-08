@@ -90,6 +90,16 @@ class FileDatabase(object):
     self.update_db_time()
     self.commit()
 
+  def update_file_mtime(self, public_key, path):
+    filename = os.path.basename(path)
+    dirname = os.path.dirname(path)
+    current_time = int(time.time())
+    self.execute("UPDATE files SET st_mtime={} WHERE path='{}' AND filename='{}' AND pub_key='{}'".format(
+        current_time, dirname, filename, public_key))
+    self.update_db_time()
+    self.commit()
+    return current_time
+
   def update_size(self, public_key, path, size):
     filename = os.path.basename(path)
     dirname = os.path.dirname(path)

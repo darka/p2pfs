@@ -112,10 +112,13 @@ class FileSystem(LoggingMixIn, Operations):
   unlink = None
 
   def write(self, path, data, offset, fh):
-    f = open(os.path.join(self.file_dir, path[1:]), 'w')
+    full_file_path = os.path.join(self.file_dir, path[1:])
+    f = open(full_file_path, 'w')
     f.seek(offset, 0)
     f.write(data)
     f.close()
+    mtime = threads.blockingCallFromThread(reactor, self.file_db.update_file_mtime, self.key, path)
     threads.blockingCallFromThread(reactor, self.file_db.update_size, self.key, path, len(data))
+    reactor.callFromThread(self.file_service.publish_file, self.key, path[1:], full_file_path, mtime)
     return len(data)
 
