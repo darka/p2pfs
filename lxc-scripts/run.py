@@ -48,6 +48,8 @@ def run_subprocess(address, command, fake=False):
     command_parts = ['lxc-execute', '-n', address[0], '--', sys.executable] + command.split()
     print(' '.join(command_parts))
     if not fake:
+      command = 'sudo lxc-execute -n cont001 -- /usr/bin/python /home/ubuntu/p2pfs/src/share_node.py --port 2000 --key /home/ubuntu/p2pfs/src/keys/key0 --db /home/ubuntu/p2pfs/src/dbs/db0 --log /home/ubuntu/p2pfs/src/logs/log0 --dir /home/ubuntu/p2pfs/src/res/res0 --newdb'
+      command_parts = command.split()
       subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=location)
 
 def with_default_args(command, current):
