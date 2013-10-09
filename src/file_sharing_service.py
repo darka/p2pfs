@@ -141,7 +141,7 @@ class FileSharingService():
     df.addCallback(getFile)
     return df
  
-  def download(self, path, key):
+  def download(self, path, key, update_time=False):
     filename = os.path.basename(path)
     hash = sha_hash(filename)
     self.l.log('Downloading: {}'.format(filename))
@@ -161,9 +161,18 @@ class FileSharingService():
         df = c.connectTCP(contact.address, contact.port)
         return df
     
+    def updateTime(full_file_path):
+      update_time = self.file_db.get_file_mtime(key, filename)
+      if update_time == 0: 
+       return
+      os.utime(full_file_path, (update_time, update_time))
+      print('changed {} mtime to {}'.format(full_file_path, update_time))
+      
     df = self.node.iterativeFindValue(hash)
     df.addCallback(getTargetNode)
     df.addCallback(connectToPeer)
     df.addCallback(getFile)
+    if update_time:
+      df.addCallback(updateTime)
     return df
  

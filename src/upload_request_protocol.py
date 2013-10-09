@@ -31,5 +31,5 @@ class UploadRequestProtocol(LineReceiver):
       return
     save_buffer(self.buffer, self.destination)
     self.l.log('Saved buffer to {}'.format(self.destination))
-    self.df.callback(None)
+    self.df.callback(self.destination)
 
