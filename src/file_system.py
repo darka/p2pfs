@@ -34,8 +34,8 @@ class FileSystem(LoggingMixIn, Operations):
     else:
       raise FuseOSError(ENOENT)
 
-  #getxattr = None
-  #listxattr = None
+  getxattr = None
+  listxattr = None
 
   def readdir(self, path, fh):
     contents = threads.blockingCallFromThread(reactor, self.file_db.list_directory, self.key, path)

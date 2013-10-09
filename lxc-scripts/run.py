@@ -39,8 +39,9 @@ for i in xrange(0, total-1):
 print [a for a in addresses]
 
 current = 0
-shares = { 1 : os.path.join(location, 'src', 'pngs'),
-           2 : os.path.join(location, 'src', 'more_pngs') }
+shares = {}
+#shares = { 1 : os.path.join(location, 'src', 'pngs'),
+#           2 : os.path.join(location, 'src', 'more_pngs') }
 
 def run_subprocess(address, command, fake=False):
     time.sleep(0.5)
@@ -63,6 +64,7 @@ def with_default_args(command, current):
     ret += " --db {}".format(db_location)
     ret += " --log {}".format(log_location)
     ret += " --dir {}".format(resource_location)
+    ret += " --newdb"
     return ret
   
 def run_nodes(addresses):
@@ -93,7 +95,8 @@ def run_nodes(addresses):
         if current in shares:
             command = '{} {} {}'.format(command, '--share', shares[current])
          
-        run_subprocess(b, command, args.simulate)
+        #run_subprocess(b, command, args.simulate)
+        run_subprocess(b, command, True)
         current += 1
 
 def main():
