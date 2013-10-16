@@ -37,10 +37,12 @@ class FileSharingService():
       if mtime < metadata:
         print 'will redownload: {} ({} < {})'.format(self.file_db.db_filename, mtime, metadata)
         self.download(self.file_db.db_filename, self.key)
+      else:
+        print('{} >= {}'.format(mtime, metadata))
     def handleError(_):
       print('will update nothing')
     df.addCallback(handleMetadata)
-    reactor.callLater(20, self.query_and_update_db_by_metadata)
+    reactor.callLater(5, self.query_and_update_db_by_metadata)
 
   def _setupTCPNetworking(self):
     # Next lines are magic:
@@ -112,6 +114,8 @@ class FileSharingService():
 
   def publish_file(self, key, filename, full_file_path, m_time, add_to_database=False):
     self.l.log('--> {}'.format(filename))
+    hash = sha_hash(filename)
+    self.storage[hash] = {'key':key, 'filename':filename, 'mtime':int(m_time)}
     df = self.publishFileWithUpload(filename, full_file_path, m_time)
     return df
 
@@ -121,6 +125,8 @@ class FileSharingService():
     self.l.log('Getting metadata for: {}'.format(filename))
     
     def getTargetNode(result):
+      print result
+      print self.storage
       return result.pop()
 
     def getFile(protocol):

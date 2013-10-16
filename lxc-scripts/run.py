@@ -63,6 +63,7 @@ def with_default_args(command, current):
     ret += " --db {}".format(db_location)
     ret += " --log {}".format(log_location)
     ret += " --dir {}".format(resource_location)
+    ret += " --newdb"
     return ret
   
 def run_nodes(addresses):
