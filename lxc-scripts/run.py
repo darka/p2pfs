@@ -39,17 +39,14 @@ for i in xrange(0, total-1):
 print [a for a in addresses]
 
 current = 0
-shares = {}
-#shares = { 1 : os.path.join(location, 'src', 'pngs'),
-#           2 : os.path.join(location, 'src', 'more_pngs') }
+shares = { 1 : os.path.join(location, 'src', 'pngs'),
+           2 : os.path.join(location, 'src', 'more_pngs') }
 
 def run_subprocess(address, command, fake=False):
     time.sleep(0.5)
     command_parts = ['lxc-execute', '-n', address[0], '--', sys.executable] + command.split()
     print(' '.join(command_parts))
     if not fake:
-      command = 'sudo lxc-execute -n cont001 -- /usr/bin/python /home/ubuntu/p2pfs/src/share_node.py --port 2000 --key /home/ubuntu/p2pfs/src/keys/key0 --db /home/ubuntu/p2pfs/src/dbs/db0 --log /home/ubuntu/p2pfs/src/logs/log0 --dir /home/ubuntu/p2pfs/src/res/res0 --newdb'
-      command_parts = command.split()
       subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=location)
 
 def with_default_args(command, current):
@@ -97,8 +94,7 @@ def run_nodes(addresses):
         if current in shares:
             command = '{} {} {}'.format(command, '--share', shares[current])
          
-        #run_subprocess(b, command, args.simulate)
-        run_subprocess(b, command, True)
+        run_subprocess(b, command, args.simulate)
         current += 1
 
 def main():
