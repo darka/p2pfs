@@ -43,8 +43,8 @@ def main():
   parser.add_argument('--fs', default=None)
   args = parser.parse_args()
 
-  print('> opening log file')
   l.set_output(open(args.log_filename, 'w'))
+  print('> logging to: {}'.format(args.log_filename))
   
   if args.address:
     ip, port = args.address.split(':')
@@ -93,10 +93,10 @@ def main():
     if args.newdb:
       print('> adding \'/\'')
       file_db.add_directory(public_key, '/', 0755)
-    l.log('Node running.')
+    l.log('Main', 'Node running.')
   
     def fuse_call():
-      time.sleep(20)
+      time.sleep(10)
       print('> filesystem running')
       fuse = FUSE(FileSystem(l, public_key, file_db, file_service, args.content_directory), args.fs, foreground=True)
   

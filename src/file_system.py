@@ -14,8 +14,11 @@ class FileSystem(LoggingMixIn, Operations):
     self.l = logger
     self.file_service = file_service
 
+  def log(self, message):
+    self.l.log('FileSystem', message)
+
   def __call__(self, op, *args):
-    print '->', op, (' '.join(str(arg) for arg in args) if args else '')
+    self.log('-> {} {}'.format(op, (' '.join(str(arg) for arg in args) if args else '')))
     ret = getattr(self, op)(*args)
     return ret
 
@@ -121,6 +124,7 @@ class FileSystem(LoggingMixIn, Operations):
   def write(self, path, data, offset, fh):
     full_file_path = os.path.join(self.file_dir, path[1:])
     f = open(full_file_path, 'w')
+    self.log('writing {}'.format(full_file_path))
     f.seek(offset, 0)
     f.write(data)
     f.close()

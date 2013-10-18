@@ -1,3 +1,4 @@
+import datetime
 import sys
 
 class Logger(object):
@@ -10,7 +11,14 @@ class Logger(object):
     else:
       self.out = where
 
-  def log(self, message):
-    self.out.write(message + '\n')
+  def log(self, *args):
+    if len(args) == 1:
+      cl = 'NULL'
+      message = args[0]
+    elif len(args) == 2:
+      cl = args[0]
+      message = args[1]
+    tm = str(datetime.datetime.now())
+    self.out.write('[{}] [{}] {}\n'.format(tm, cl, message))
     self.out.flush()
  

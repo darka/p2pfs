@@ -17,7 +17,7 @@ class FileDatabase(object):
       self.create_tables()
     
   def execute(self, command):
-    self.l.log(command)
+    self.l.log('SQL', command)
     c = self.conn.cursor()
     c.execute(command)
     return c
@@ -31,7 +31,7 @@ class FileDatabase(object):
     try:
       self.execute('''DROP TABLE files''')
     except sqlite3.OperationalError:
-      self.l.log('Could not drop table')
+      self.l.log('DB', 'Could not drop table')
     self.execute(
           "CREATE TABLE files ("
           "pub_key text, "
@@ -66,19 +66,23 @@ class FileDatabase(object):
     self.update_db_time()
     self.commit()
 
-  def get_file_mtime(self, public_key, filename):
-    self.l.log('Retrieving mtime for: {}'.format(filename))
-    c = self.execute("SELECT st_mtime FROM files WHERE pub_key='{}' AND filename='{}'".format(public_key, filename))
+  def get_file_mtime(self, public_key, path):
+    filename = os.path.basename(path)
+    dirname = os.path.dirname(path)
+    self.l.log('DB', 'Retrieving mtime for: {}'.format(filename))
+    c = self.execute("SELECT st_mtime FROM files WHERE pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
     ret = c.fetchone()
-    self.l.log('Result: {}'.format(str(ret)))
-    if not ret: return 0
-    else: return ret[0]
+    self.l.log('DB', 'Result: {}'.format(str(ret)))
+    if not ret: 
+      return 0
+    else: 
+      return ret[0]
     
   def get_db_mtime(self, public_key):
-    self.l.log('Retrieving db mtime')
+    self.l.log('DB', 'Retrieving db mtime')
     c = self.execute("SELECT st_mtime FROM files WHERE pub_key='{}' AND path='DB' AND filename='DB' AND is_internal=1".format(public_key))
     ret = c.fetchone()
-    self.l.log('Result: {}'.format(str(ret)))
+    self.l.log('DB', 'Result: {}'.format(str(ret)))
     if not ret: return 0
     else: return ret[0]
     
