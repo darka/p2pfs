@@ -111,7 +111,7 @@ class FileSharingService():
       shutil.copyfile(os.path.join(path, filename), full_file_path)
       
       size = os.path.getsize(full_file_path)
-      self.file_db.add_file(key, filename, '/', 0777, size)
+      self.file_db.add_file(key, os.path.join('/', filename), 0777, size)
       m_time = self.file_db.get_file_mtime(self.key, filename)
       self.publish_file(key, filename, full_file_path, m_time)
 

@@ -49,8 +49,14 @@ class FileSystem(LoggingMixIn, Operations):
       return ret
 
   def create(self, path, mode):
-    threads.blockingCallFromThread(reactor, self.file_db.add_file, self.key, os.path.basename(path), os.path.dirname(path), mode, 0)
-    return os.open(os.path.join(self.file_dir, path[1:]), os.O_WRONLY | os.O_CREAT, mode)
+    threads.blockingCallFromThread(reactor, self.file_db.add_file, self.key, path, mode, 0)
+    real_path = os.path.join(self.file_dir, path[1:])
+    dir_path = os.path.dirname(real_path)
+    if not os.path.exists(dir_path):
+      self.log('create dir: {}'.format(dir_path))
+      os.makedirs(dir_path)
+    self.log('create file: {}'.format(real_path))
+    return os.open(real_path, os.O_WRONLY | os.O_CREAT, mode)
 
   def mkdir(self, path, mode):
     threads.blockingCallFromThread(reactor, self.file_db.add_directory, self.key, path, mode)

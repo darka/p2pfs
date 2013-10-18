@@ -142,18 +142,18 @@ class FileDatabase(object):
     self.update_db_time()
     self.commit()
 
-  def add_file(self, public_key, filename, path, mode, size):
+  def add_file(self, public_key, path, mode, size):
+    dirname, filename = os.path.split(path)
     current_time = int(time.time())
     self.execute("INSERT INTO files"
                  "(pub_key, filename, path, st_mode, st_atime, st_mtime, st_ctime, st_size) "
                  "VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}', {})".format(
-        public_key, filename, path, S_IFREG | mode, current_time, current_time, current_time, size))
+        public_key, filename, dirname, S_IFREG | mode, current_time, current_time, current_time, size))
     self.update_db_time()
     self.commit()
 
   def delete_directory(self, public_key, path):
-    dirname = os.path.dirname(path)
-    filename = os.path.basename(path)
+    dirname, filename = os.path.split(path)
     self.execute("DELETE FROM files WHERE "
                  "pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
     self.update_db_time()
