@@ -14,12 +14,11 @@ class UploadRequestProtocol(LineReceiver):
   def rawDataReceived(self, data):
     self.buffer += data
 
-  def request_file(self, filename, file_path, key, hash):
-    self.filename = filename
+  def request_file(self, path, file_path, key, hash):
     self.destination = file_path
     hexhash = binascii.hexlify(hash)
-    self.l.log("uploadFile protocol working ({}, {}, {}, {})".format(filename, file_path, key, hexhash))
-    self.sendLine(str(','.join(['upload', filename, key, hexhash])))
+    self.l.log("uploadFile protocol working ({}, {}, {}, {})".format(path, file_path, key, hexhash))
+    self.sendLine(str(','.join(['upload', path, key, hexhash])))
     self.l.log('file request finished')
     self.setRawMode()
     self.df = defer.Deferred()

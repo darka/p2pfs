@@ -22,7 +22,11 @@ class IndexMasterProtocol(LineReceiver):
       self.hash = binascii.unhexlify(self.command[3])
       self.mtime = self.command[4]
       self.log("Index Master received: {}".format(self.filename))
-      self.destination = os.path.join(self.factory.file_dir, self.filename)
+      # hack
+      if self.filename[0] == '/':
+        self.destination = os.path.join(self.factory.file_dir, self.filename[1:])
+      else:
+        self.destination = os.path.join(self.factory.file_dir, self.filename)
       self.setRawMode()
 
     elif self.command[0] == 'tell_metadata':
@@ -42,7 +46,11 @@ class IndexMasterProtocol(LineReceiver):
 
       if self.factory.file_service.storage.has_key(self.hash):
         self.setRawMode()
-        file_path = os.path.join(self.factory.file_dir, self.command[1])
+        # hack
+        if self.command[1][0] == '/':
+          file_path = os.path.join(self.factory.file_dir, self.command[1][1:])
+        else:
+          file_path = os.path.join(self.factory.file_dir, self.command[1])
         upload_file(file_path, self.transport)
         self.transport.loseConnection()
       else:

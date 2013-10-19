@@ -78,7 +78,7 @@ class FileSystem(LoggingMixIn, Operations):
       file_path = os.path.join(self.file_dir, path[1:])
       if not self.file_is_up_to_date(file_path):
         # we need to find this file on the dht
-        threads.blockingCallFromThread(reactor, self.file_service.download, file_path, self.key, True)
+        threads.blockingCallFromThread(reactor, self.file_service.download, path, file_path, self.key, True)
       
     return os.open(os.path.join(self.file_dir, path[1:]), flags)
 
@@ -86,7 +86,7 @@ class FileSystem(LoggingMixIn, Operations):
     file_path = os.path.join(self.file_dir, path[1:])
     if not self.file_is_up_to_date(file_path):
       # we need to find this file on the dht
-      threads.blockingCallFromThread(reactor, self.file_service.download, file_path, self.key, True)
+      threads.blockingCallFromThread(reactor, self.file_service.download, path, file_path, self.key, True)
     f = open(file_path, 'r')
     f.seek(offset, 0)
     buf = f.read(size)
@@ -136,6 +136,6 @@ class FileSystem(LoggingMixIn, Operations):
     f.close()
     mtime = threads.blockingCallFromThread(reactor, self.file_db.update_file_mtime, self.key, path)
     threads.blockingCallFromThread(reactor, self.file_db.update_size, self.key, path, len(data))
-    reactor.callFromThread(self.file_service.publish_file, self.key, path[1:], full_file_path, mtime)
+    reactor.callFromThread(self.file_service.publish_file, self.key, path, full_file_path, mtime)
     return len(data)
 

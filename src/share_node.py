@@ -96,7 +96,7 @@ def main():
     l.log('Main', 'Node running.')
   
     def fuse_call():
-      time.sleep(10)
+      time.sleep(20)
       print('> filesystem running')
       fuse = FUSE(FileSystem(l, public_key, file_db, file_service, args.content_directory), args.fs, foreground=True)
   

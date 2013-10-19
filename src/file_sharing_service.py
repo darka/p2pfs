@@ -22,7 +22,8 @@ class FileSharingService():
 
     self._setupTCPNetworking()
     if not self.file_db.new:
-      reactor.callLater(7, self.download, self.file_db.db_filename, self.key)
+      db_path = os.path.join(self.file_dir, self.file_db.db_filename)
+      reactor.callLater(7, self.download, os.path.basename(self.file_db.db_filename), db_path, self.key)
       reactor.callLater(11, self.file_db.ready, self)
       reactor.callLater(17, self.query_and_update_db_by_metadata)
     else:
@@ -39,7 +40,8 @@ class FileSharingService():
       mtime = self.file_db.get_db_mtime(self.key)
       if mtime < metadata:
         self.log('will redownload: {} ({} < {})'.format(self.file_db.db_filename, mtime, metadata))
-        self.download(self.file_db.db_filename, self.key)
+        db_path = os.path.join(self.file_dir, self.file_db.db_filename)
+        self.download(os.path.basename(self.file_db.db_filename), db_path, self.key)
       else:
         self.log('{}: {} >= {}'.format(self.file_db.db_filename, mtime, metadata))
     def handleError(_):
@@ -61,14 +63,14 @@ class FileSharingService():
   def search(self, keyword):
     return self.node.searchForKeywords(keyword)
   
-  def publishFileWithUpload(self, filename, file_path, m_time):
-    key = sha_hash(filename)
-    self.log('publishing file {} ({})'.format(filename, file_path))
+  def publishFileWithUpload(self, path, local_file_path, m_time):
+    key = sha_hash(path)
+    self.log('publishing file {} ({})'.format(path, local_file_path))
 
     def uploadFile(protocol):
       if protocol != None:
-        self.log("uploadFile {} {}".format(filename, file_path))
-        protocol.uploadFile(filename, file_path, self.key, key, m_time)
+        self.log("uploadFile {} {}".format(path, local_file_path))
+        protocol.uploadFile(path, local_file_path, self.key, key, m_time)
 
     def uploadFileToPeers(contacts):
       outerDf = defer.Deferred()
@@ -79,7 +81,7 @@ class FileSharingService():
           c = ClientCreator(reactor, UploadProtocol, self.l)
           df = c.connectTCP(contact.address, contact.port)
           df.addCallback(uploadFile)
-          self.log("Will upload '{}' to: {}".format(file_path, contact))
+          self.log("Will upload '{}' to: {}".format(local_file_path, contact))
           outerDf.chainDeferred(df)
       return outerDf
     
@@ -111,15 +113,16 @@ class FileSharingService():
       shutil.copyfile(os.path.join(path, filename), full_file_path)
       
       size = os.path.getsize(full_file_path)
-      self.file_db.add_file(key, os.path.join('/', filename), 0777, size)
-      m_time = self.file_db.get_file_mtime(self.key, filename)
-      self.publish_file(key, filename, full_file_path, m_time)
+      file_path = os.path.join('/', filename)
+      self.file_db.add_file(key, file_path, 0777, size)
+      m_time = self.file_db.get_file_mtime(self.key, file_path)
+      self.publish_file(key, file_path, full_file_path, m_time)
 
-  def publish_file(self, key, filename, full_file_path, m_time, add_to_database=False):
-    self.log('--> {}'.format(filename))
-    hash = sha_hash(filename)
-    self.storage[hash] = {'key':key, 'filename':filename, 'mtime':int(m_time)}
-    df = self.publishFileWithUpload(filename, full_file_path, m_time)
+  def publish_file(self, key, path, full_file_path, m_time, add_to_database=False):
+    self.log('--> {}'.format(path))
+    hash = sha_hash(path)
+    self.storage[hash] = {'key':key, 'filename':path, 'mtime':int(m_time)}
+    df = self.publishFileWithUpload(path, full_file_path, m_time)
     return df
 
   def get_metadata(self, path, key):
@@ -150,17 +153,16 @@ class FileSharingService():
     df.addCallback(getFile)
     return df
  
-  def download(self, path, key, update_time=False):
-    filename = os.path.basename(path)
-    hash = sha_hash(filename)
-    self.log('Downloading: {}'.format(filename))
+  def download(self, path, destination, key, update_time=False):
+    hash = sha_hash(path)
+    self.log('Downloading: {}'.format(path))
     
     def getTargetNode(result):
       return result.pop()
 
     def getFile(protocol):
       if protocol != None:
-        return protocol.request_file(filename, path, key, hash)
+        return protocol.request_file(path, destination, key, hash)
 
     def connectToPeer(contact):
       if contact == None:
