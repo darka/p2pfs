@@ -18,9 +18,9 @@ class FileSystem(LoggingMixIn, Operations):
     self.l.log('FileSystem', message)
 
   def __call__(self, op, *args):
-    self.log('-> {} {}'.format(op, (' '.join(str(arg) for arg in args) if args else '')))
-    ret = getattr(self, op)(*args)
-    return ret
+    #self.log('-> {} {}'.format(op, (' '.join(str(arg) for arg in args) if args else '')))
+    self.log('-> {} ...'.format(op))
+    return getattr(self, op)(*args)
 
   def chown(self, path, uid, gid):
     threads.blockingCallFromThread(reactor, self.file_db.chown, self.key, path, uid, gid)
