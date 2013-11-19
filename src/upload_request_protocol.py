@@ -23,7 +23,6 @@ class UploadRequestProtocol(LineReceiver):
     contents = json.dumps({'command' : 'upload', 'path' : path, 'key' : key, 'hash' : hexhash})
     self.sendLine(contents)
 
-    #self.sendLine(str(','.join(['upload', path, key, hexhash])))
     self.l.log('file request finished')
     self.setRawMode()
     self.df = defer.Deferred()
