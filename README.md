@@ -1,4 +1,4 @@
 p2pfs
 =====
 
-MInf project
+This is a peer-to-peer distributed file system using Python Twisted, Entangled (Kademlia) and FUSE.
