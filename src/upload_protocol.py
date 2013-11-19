@@ -1,6 +1,7 @@
 from twisted.protocols.basic import LineReceiver
 from helpers import *
 import binascii
+import json
 
 class UploadProtocol(LineReceiver):
   def __init__(self, logger):
@@ -11,7 +12,10 @@ class UploadProtocol(LineReceiver):
 
   def uploadFile(self, path, file_path, key, hash, mtime):
     self.l.log("uploadFile protocol working, mtime: {}".format(mtime))
-    self.sendLine(str(','.join(['store', path, key, binascii.hexlify(hash), str(mtime)])))
+
+    contents = json.dumps({'command' : 'store', 'path' : path, 'key' : key, 'hash' : binascii.hexlify(hash), 'time' : str(mtime)})
+    self.sendLine(contents)
+
     upload_file(file_path, self.transport)
     self.transport.loseConnection()
     self.l.log('finished uploading')

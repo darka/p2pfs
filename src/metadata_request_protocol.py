@@ -2,6 +2,7 @@ from twisted.internet import defer
 from twisted.protocols.basic import LineReceiver
 from helpers import *
 import binascii
+import json
 
 class MetadataRequestProtocol(LineReceiver):
   def __init__(self, logger):
@@ -15,7 +16,9 @@ class MetadataRequestProtocol(LineReceiver):
     self.buffer = line
 
   def request_metadata(self, filename, key, hash):
-    self.sendLine(str(','.join(['tell_metadata', filename, binascii.hexlify(hash), key])))
+    contents = json.dumps({'command' : 'tell_metadata', 'path' : filename, 'key' : key, 'hash' : binascii.hexlify(hash)})
+    self.sendLine(contents)
+
     self.l.log('metadata request finished')
     self.df = defer.Deferred()
     return self.df

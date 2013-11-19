@@ -2,6 +2,7 @@ from twisted.internet import defer
 from twisted.protocols.basic import LineReceiver
 from helpers import *
 import binascii
+import json
 
 class UploadRequestProtocol(LineReceiver):
   def __init__(self, logger):
@@ -18,7 +19,11 @@ class UploadRequestProtocol(LineReceiver):
     self.destination = file_path
     hexhash = binascii.hexlify(hash)
     self.l.log("uploadFile protocol working ({}, {}, {}, {})".format(path, file_path, key, hexhash))
-    self.sendLine(str(','.join(['upload', path, key, hexhash])))
+
+    contents = json.dumps({'command' : 'upload', 'path' : path, 'key' : key, 'hash' : hexhash})
+    self.sendLine(contents)
+
+    #self.sendLine(str(','.join(['upload', path, key, hexhash])))
     self.l.log('file request finished')
     self.setRawMode()
     self.df = defer.Deferred()

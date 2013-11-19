@@ -1,6 +1,7 @@
 from twisted.protocols.basic import LineReceiver
 from helpers import *
 import os
+import json
 import binascii
 
 class IndexMasterProtocol(LineReceiver):
@@ -13,14 +14,15 @@ class IndexMasterProtocol(LineReceiver):
     self.buffer = ''
 
   def lineReceived(self, data):
-    self.command = data.split(',')
-    self.log('Received: {}'.format(self.command[0]))
+    data = json.loads(data)
+    self.command_name = data['command']
+    self.log('Received: {}'.format(self.command_name))
 
-    if self.command[0] == 'store':
-      self.filename = self.command[1]
-      self.key = self.command[2]
-      self.hash = binascii.unhexlify(self.command[3])
-      self.mtime = self.command[4]
+    if self.command_name == 'store':
+      self.filename = data['path']
+      self.key = data['key']
+      self.hash = binascii.unhexlify(data['hash'])
+      self.mtime = data['time']
       self.log("Index Master received: {}".format(self.filename))
       # hack
       if self.filename[0] == '/':
@@ -29,9 +31,9 @@ class IndexMasterProtocol(LineReceiver):
         self.destination = os.path.join(self.factory.file_dir, self.filename)
       self.setRawMode()
 
-    elif self.command[0] == 'tell_metadata':
-      path = self.command[1]
-      self.hash = binascii.unhexlify(self.command[2])
+    elif self.command_name == 'tell_metadata':
+      path = data['path']
+      self.hash = binascii.unhexlify(data['hash'])
 
       if self.factory.file_service.storage.has_key(self.hash):
         #print self.factory.file_service.storage
@@ -40,17 +42,17 @@ class IndexMasterProtocol(LineReceiver):
       else:
         self.log('Cannot send metadata: no such key')
 
-    elif self.command[0] == 'upload':
-      self.log('upload: {}'.format(self.command[1]))
-      self.hash = binascii.unhexlify(self.command[3])
+    elif self.command_name == 'upload':
+      self.log('upload: {}'.format(self.command_name))
+      self.hash = binascii.unhexlify(data['hash'])
 
       if self.factory.file_service.storage.has_key(self.hash):
         self.setRawMode()
         # hack
-        if self.command[1][0] == '/':
-          file_path = os.path.join(self.factory.file_dir, self.command[1][1:])
+        if data['path'][0] == '/':
+          file_path = os.path.join(self.factory.file_dir, data['path'][1:])
         else:
-          file_path = os.path.join(self.factory.file_dir, self.command[1])
+          file_path = os.path.join(self.factory.file_dir, data['path'])
         upload_file(file_path, self.transport)
         self.transport.loseConnection()
       else:
@@ -60,7 +62,7 @@ class IndexMasterProtocol(LineReceiver):
     self.buffer += data
 
   def connectionLost(self, reason):
-    if self.command[0] == 'store':
+    if self.command_name == 'store':
 
       if len(self.buffer) == 0:
         self.log("Error! Connection lost :(\n")
@@ -70,9 +72,9 @@ class IndexMasterProtocol(LineReceiver):
         self.factory.file_service.storage[self.hash] = {'key':self.key, 'filename':self.filename, 'mtime':int(self.mtime)}
         self.log('Stored: {}'.format(self.filename))
 
-    elif self.command[0] == 'tell_metadata':
+    elif self.command_name == 'tell_metadata':
       self.log('Metadata sent')
 
-    elif self.command[0] == 'upload':
+    elif self.command_name == 'upload':
       self.log('Upload finished')
  
