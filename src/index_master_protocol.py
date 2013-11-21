@@ -11,7 +11,6 @@ class IndexMasterProtocol(LineReceiver):
   def connectionMade(self):
     self.setLineMode()
     self.log('Index Master Running')
-    self.buffer = ''
 
   def lineReceived(self, data):
     data = json.loads(data)
@@ -29,6 +28,8 @@ class IndexMasterProtocol(LineReceiver):
         self.destination = os.path.join(self.factory.file_dir, self.filename[1:])
       else:
         self.destination = os.path.join(self.factory.file_dir, self.filename)
+      self.outfile = open(self.destination, 'wb')
+      self.outfile_size = 0
       self.setRawMode()
 
     elif self.command_name == 'tell_metadata':
@@ -53,24 +54,32 @@ class IndexMasterProtocol(LineReceiver):
           file_path = os.path.join(self.factory.file_dir, data['path'][1:])
         else:
           file_path = os.path.join(self.factory.file_dir, data['path'])
-        upload_file(file_path, self.transport)
-        self.transport.loseConnection()
+        self.infile = open(file_path, 'r')
+        self.log('Uploading: {}'.format(file_path))
+        d = upload_file(self.infile, self.transport)
+        d.addCallback(self.transferCompleted)
       else:
         self.log('Cannot upload: no such key')
+
+  def transferCompleted(self, lastsent):
+    self.log('finished uploading')
+    self.infile.close()
+    self.transport.loseConnection()
       
   def rawDataReceived(self, data):
-    self.buffer += data
+    self.outfile.write(data)
+    self.outfile_size += len(data)
 
   def connectionLost(self, reason):
     if self.command_name == 'store':
 
-      if len(self.buffer) == 0:
+      if self.outfile_size == 0:
         self.log("Error! Connection lost :(\n")
         return
       else:
-        save_buffer(self.buffer, self.destination)
+        self.outfile.close()
         self.factory.file_service.storage[self.hash] = {'key':self.key, 'filename':self.filename, 'mtime':int(self.mtime)}
-        self.log('Stored: {}'.format(self.filename))
+        self.log('Stored: {} ({} bytes)'.format(self.filename, self.outfile_size))
 
     elif self.command_name == 'tell_metadata':
       self.log('Metadata sent')

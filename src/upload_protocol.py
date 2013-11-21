@@ -16,8 +16,15 @@ class UploadProtocol(LineReceiver):
     contents = json.dumps({'command' : 'store', 'path' : path, 'key' : key, 'hash' : binascii.hexlify(hash), 'time' : str(mtime)})
     self.sendLine(contents)
 
-    upload_file(file_path, self.transport)
-    self.transport.loseConnection()
+    self.infile = open(file_path, 'r')
+    d = upload_file(self.infile, self.transport)
+    d.addCallback(self.transferCompleted)
+
+    self.l.log('started uploading')
+
+  def transferCompleted(self, lastsent):
     self.l.log('finished uploading')
+    self.infile.close()
+    self.transport.loseConnection()
 
 
