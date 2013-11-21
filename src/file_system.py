@@ -66,17 +66,17 @@ class FileSystem(LoggingMixIn, Operations):
   #release = None
   #releasedir = None
 
-  def file_is_up_to_date(self, file_path):
-    if not os.path.isfile(file_path):
+  def file_is_up_to_date(self, file_path_on_disk, path):
+    if not os.path.isfile(file_path_on_disk):
       return False
-    if os.stat(file_path).st_mtime < threads.blockingCallFromThread(reactor, self.file_db.get_file_mtime, self.key, os.path.basename(file_path)):
+    if os.stat(file_path_on_disk).st_mtime < threads.blockingCallFromThread(reactor, self.file_db.get_file_mtime, self.key, path):
       return False
     return True
     
   def open(self, path, flags):
     if threads.blockingCallFromThread(reactor, self.file_db.file_exists, self.key, path):
       file_path = os.path.join(self.file_dir, path[1:])
-      if not self.file_is_up_to_date(file_path):
+      if not self.file_is_up_to_date(file_path, path):
         # we need to find this file on the dht
         threads.blockingCallFromThread(reactor, self.file_service.download, path, file_path, self.key, True)
       
@@ -84,7 +84,7 @@ class FileSystem(LoggingMixIn, Operations):
 
   def read(self, path, size, offset, fh):
     file_path = os.path.join(self.file_dir, path[1:])
-    if not self.file_is_up_to_date(file_path):
+    if not self.file_is_up_to_date(file_path, path):
       # we need to find this file on the dht
       threads.blockingCallFromThread(reactor, self.file_service.download, path, file_path, self.key, True)
     f = open(file_path, 'r')
