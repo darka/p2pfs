@@ -13,6 +13,7 @@ class FileSystem(LoggingMixIn, Operations):
     self.key = key
     self.l = logger
     self.file_service = file_service
+    self.updateables = set([])
 
   def log(self, message):
     self.l.log('FileSystem', message)
@@ -96,9 +97,17 @@ class FileSystem(LoggingMixIn, Operations):
   #def symlink(self, target, source):
   #  print 'symlink'
   def flush(self, path, fh):
+    os.fsync(fh)
+    if fh in self.updateables:
+      full_file_path = os.path.join(self.file_dir, path[1:])
+      mtime = threads.blockingCallFromThread(reactor, self.file_db.update_file_mtime, self.key, path)
+      threads.blockingCallFromThread(reactor, self.file_db.update_size, self.key, path, os.path.getsize(full_file_path))
+      reactor.callFromThread(self.file_service.publish_file, self.key, path, full_file_path, mtime)
+      self.updateables.remove(fh)
     return 0
 
   def fsync(self, path, datasync, fh):
+    os.fsync(fh)
     return 0
 
   def utimens(self, path, times=None):
@@ -128,14 +137,10 @@ class FileSystem(LoggingMixIn, Operations):
   unlink = None
 
   def write(self, path, data, offset, fh):
-    full_file_path = os.path.join(self.file_dir, path[1:])
-    f = open(full_file_path, 'w')
-    self.log('writing {}'.format(full_file_path))
-    f.seek(offset, 0)
-    f.write(data)
-    f.close()
-    mtime = threads.blockingCallFromThread(reactor, self.file_db.update_file_mtime, self.key, path)
-    threads.blockingCallFromThread(reactor, self.file_db.update_size, self.key, path, len(data))
-    reactor.callFromThread(self.file_service.publish_file, self.key, path, full_file_path, mtime)
-    return len(data)
+    self.log('handle {}'.format(str(fh)))
+    #f = open(full_file_path, 'w')
+    self.log('writing {}'.format(path))
+    os.lseek(fh, offset, 0)
+    self.updateables.add(fh)
+    return os.write(fh, data)
 
