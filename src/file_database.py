@@ -152,6 +152,13 @@ class FileDatabase(object):
     self.update_db_time()
     self.commit()
 
+  def delete_file(self, public_key, path):
+    dirname, filename = os.path.split(path)
+    self.execute("DELETE FROM files WHERE "
+                 "pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
+    self.update_db_time()
+    self.commit()
+
   def delete_directory(self, public_key, path):
     dirname, filename = os.path.split(path)
     self.execute("DELETE FROM files WHERE "

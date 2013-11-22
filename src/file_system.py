@@ -49,6 +49,11 @@ class FileSystem(LoggingMixIn, Operations):
     else:
       return ret
 
+  def unlink(self, path):
+    threads.blockingCallFromThread(reactor, self.file_db.delete_file, self.key, path)
+    real_path = os.path.join(self.file_dir, path[1:])
+    os.unlink(real_path)
+
   def create(self, path, mode):
     threads.blockingCallFromThread(reactor, self.file_db.add_file, self.key, path, mode, 0)
     real_path = os.path.join(self.file_dir, path[1:])
@@ -134,7 +139,6 @@ class FileSystem(LoggingMixIn, Operations):
     return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
   
   symlink = None
-  unlink = None
 
   def write(self, path, data, offset, fh):
     self.log('handle {}'.format(str(fh)))
