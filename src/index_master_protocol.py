@@ -28,6 +28,11 @@ class IndexMasterProtocol(LineReceiver):
         self.destination = os.path.join(self.factory.file_dir, self.filename[1:])
       else:
         self.destination = os.path.join(self.factory.file_dir, self.filename)
+
+      dirs = os.path.dirname(self.destination)
+      if not os.path.exists(dirs):
+        os.makedirs(dirs)
+
       self.outfile = open(self.destination, 'wb')
       self.outfile_size = 0
       self.setRawMode()
@@ -72,7 +77,7 @@ class IndexMasterProtocol(LineReceiver):
 
   def connectionLost(self, reason):
     if self.command_name == 'store':
-
+      self.setLineMode()
       if self.outfile_size == 0:
         self.log("Error! Connection lost :(\n")
         return
@@ -85,5 +90,6 @@ class IndexMasterProtocol(LineReceiver):
       self.log('Metadata sent')
 
     elif self.command_name == 'upload':
+      self.setLineMode()
       self.log('Upload finished')
  

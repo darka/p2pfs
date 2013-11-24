@@ -98,7 +98,8 @@ def main():
     def fuse_call():
       time.sleep(20)
       print('> filesystem running')
-      fuse = FUSE(FileSystem(l, public_key, file_db, file_service, args.content_directory), args.fs, foreground=True, debug=True)
+      debug = False
+      fuse = FUSE(FileSystem(l, public_key, file_db, file_service, args.content_directory), args.fs, foreground=True, debug=debug)
   
     if args.fs:
       reactor.callInThread(fuse_call)

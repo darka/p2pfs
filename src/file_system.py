@@ -111,6 +111,9 @@ class FileSystem(LoggingMixIn, Operations):
       self.updateables.remove(fh)
     return 0
 
+  def release(self, path, fh):
+    return os.close(fh)
+
   def fsync(self, path, datasync, fh):
     os.fsync(fh)
     return 0
