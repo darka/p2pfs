@@ -10,7 +10,6 @@ import os
 import sys
 import shutil
 import time
-import entangled.node
   
 from threading import Lock
 
@@ -23,6 +22,7 @@ from logger import *
 from twisted.internet import task
 from twisted.internet import defer
 
+import entangled.node
 
 from entangled.kademlia.datastore import SQLiteDataStore
 
@@ -98,7 +98,7 @@ def main():
     def fuse_call():
       time.sleep(20)
       print('> filesystem running')
-      debug = False
+      debug = True
       fuse = FUSE(FileSystem(l, public_key, file_db, file_service, args.content_directory), args.fs, foreground=True, debug=debug)
   
     if args.fs:

@@ -20,7 +20,7 @@ class FileSystem(LoggingMixIn, Operations):
 
   def __call__(self, op, *args):
     #self.log('-> {} {}'.format(op, (' '.join(str(arg) for arg in args) if args else '')))
-    self.log('-> {} ...'.format(op))
+    #self.log('-> {} ...'.format(op))
     return getattr(self, op)(*args)
 
   def chown(self, path, uid, gid):
@@ -67,7 +67,11 @@ class FileSystem(LoggingMixIn, Operations):
   def mkdir(self, path, mode):
     threads.blockingCallFromThread(reactor, self.file_db.add_directory, self.key, path, mode)
 
-  #access = None
+  def access(self, path, mode):
+    real_path = os.path.join(self.file_dir, path[1:])
+    if os.path.exists(real_path) and not os.access(real_path, mode):
+      raise FuseOSError(EACCES)
+
   #opendir = None
   #release = None
   #releasedir = None
@@ -90,14 +94,11 @@ class FileSystem(LoggingMixIn, Operations):
 
   def read(self, path, size, offset, fh):
     file_path = os.path.join(self.file_dir, path[1:])
-    if not self.file_is_up_to_date(file_path, path):
-      # we need to find this file on the dht
-      threads.blockingCallFromThread(reactor, self.file_service.download, path, file_path, self.key, True)
-    f = open(file_path, 'r')
-    f.seek(offset, 0)
-    buf = f.read(size)
-    f.close()
-    return buf
+    #if not self.file_is_up_to_date(file_path, path):
+    #  # we need to find this file on the dht
+    #  threads.blockingCallFromThread(reactor, self.file_service.download, path, file_path, self.key, True)
+    os.lseek(fh, offset, 0)
+    return os.read(fh, size)
 
   #def symlink(self, target, source):
   #  print 'symlink'

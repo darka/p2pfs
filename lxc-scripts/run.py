@@ -66,7 +66,7 @@ def with_default_args(command, current):
     ret += " --newdb"
     return ret
   
-def run_nodes(addresses):
+def run_nodes(addresses, simulate=False):
       
     current = 0
     # run the first container 
@@ -77,7 +77,7 @@ def run_nodes(addresses):
     # add share if needed
     if current in shares:
         command = '{} {} {}'.format(command, '--share', shares[current])
-    run_subprocess(a, command, args.simulate)
+    run_subprocess(a, command, simulate)
 
     # run the rest of containers:
 
@@ -94,11 +94,11 @@ def run_nodes(addresses):
         if current in shares:
             command = '{} {} {}'.format(command, '--share', shares[current])
          
-        run_subprocess(b, command, args.simulate)
+        run_subprocess(b, command, simulate)
         current += 1
 
 def main():
-    run_nodes(addresses)
+    run_nodes(addresses, args.simulate)
 
 if __name__=='__main__':
     main()
