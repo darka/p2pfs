@@ -4,6 +4,7 @@ import sys
 class Logger(object):
   def __init__(self, where=None):
     self.set_output(where)
+    self.DISABLED = True
 
   def set_output(self, where):
     if not where:
@@ -12,6 +13,8 @@ class Logger(object):
       self.out = where
 
   def log(self, *args):
+    if self.DISABLED:
+      return
     if len(args) == 1:
       cl = 'NULL'
       message = args[0]

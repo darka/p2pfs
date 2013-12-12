@@ -9,6 +9,7 @@ class FileDatabase(object):
     self.db_filename = filename
     self.new = new
     self.l = logger
+    self.attr_fields = 'st_atime, st_ctime, st_mode, st_mtime, st_nlink, st_size'.split(', ')
 
   def ready(self, file_service):
     self.file_service = file_service
@@ -45,7 +46,8 @@ class FileDatabase(object):
           "st_ctime integer DEFAULT 0, "
           "st_nlink integer DEFAULT 1, "
           "st_size integer DEFAULT 0, "
-          "is_internal integer DEFAULT 0)")
+          "is_internal integer DEFAULT 0, "
+          "PRIMARY KEY(path, filename, pub_key))")
     current_time = int(time.time())
     self.execute("INSERT INTO files"
                  "(pub_key, is_internal, filename, path, st_mode, st_atime, st_mtime, st_ctime, st_size) "
@@ -123,13 +125,11 @@ class FileDatabase(object):
   def getattr(self, public_key, path):
     dirname = os.path.dirname(path)
     filename = os.path.basename(path)
-    fields = 'st_atime, st_ctime, st_mode, st_mtime, st_nlink, st_size'.split(', ')
-    c = self.execute("SELECT {} FROM files WHERE pub_key='{}' AND path='{}' AND filename='{}'".format(', '.join(fields), public_key, dirname, filename))
+    c = self.execute("SELECT st_atime, st_ctime, st_mode, st_mtime, st_nlink, st_size FROM files WHERE pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
     attrs = c.fetchone()
     if not attrs: 
       return None
-    result = dict(zip(fields, attrs))
-    return result
+    return dict(zip(self.attr_fields, attrs))
 
   def rename(self, public_key, old_path, new_path):
     old_dirname = os.path.dirname(old_path)

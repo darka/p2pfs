@@ -6,6 +6,7 @@
 ##
 
 import argparse
+import cProfile
 import os
 import sys
 import shutil
@@ -113,4 +114,5 @@ def main():
   reactor.run()
 
 if __name__ == '__main__':
-  main()
+  cProfile.run('main()')
+  #main()

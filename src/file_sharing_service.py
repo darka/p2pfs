@@ -175,7 +175,7 @@ class FileSharingService():
     def updateTime(full_file_path):
       update_time = self.file_db.get_file_mtime(key, path)
       if update_time == 0: 
-       return
+        return
       os.utime(full_file_path, (update_time, update_time))
       self.log('changed {} mtime to {}'.format(full_file_path, update_time))
       
