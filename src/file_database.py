@@ -121,58 +121,56 @@ class FileDatabase(object):
   def add_file(self, public_key, path, mode, size):
     new_file = FileObject()
     current_time = int(time.time())
-    new_file.attrs['st_mode'] = mode
+    new_file.attrs['st_mode'] = S_IFREG | mode
     new_file.attrs['st_atime'] = current_time
     new_file.attrs['st_mtime'] = current_time
     new_file.attrs['st_ctime'] = current_time
     new_file.attrs['st_size'] = size
+    new_file.attrs['st_nlink'] = 1
     dirname, filename = os.path.split(path)
-    self.execute("INSERT INTO files"
-                 "(pub_key, filename, path, st_mode, st_atime, st_mtime, st_ctime, st_size) "
-                 "VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}', {})".format(
-        public_key, filename, dirname, S_IFREG | mode, current_time, current_time, current_time, size))
+    fobj = get_file_object(public_key, dirname)
+    fobj.contents[filename] = new_file
     self.update_db_time()
 
-  def delete_file(self, public_key, path):
-    dirname, filename = os.path.split(path)
-    self.execute("DELETE FROM files WHERE "
-                 "pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
-    self.update_db_time()
-    self.commit()
-
-  def delete_directory(self, public_key, path):
-    dirname, filename = os.path.split(path)
-    self.execute("DELETE FROM files WHERE "
-                 "pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
-    self.update_db_time()
-    self.commit()
+#  def delete_file(self, public_key, path):
+#    dirname, filename = os.path.split(path)
+#    self.execute("DELETE FROM files WHERE "
+#                 "pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
+#    self.update_db_time()
+#    self.commit()
+#
+#  def delete_directory(self, public_key, path):
+#    dirname, filename = os.path.split(path)
+#    self.execute("DELETE FROM files WHERE "
+#                 "pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
+#    self.update_db_time()
+#    self.commit()
 
   def update_db_time(self):
     self.data['current_time'] = int(time.time())
 
   def add_directory(self, public_key, path, mode):
     current_time = int(time.time())
-    dirname = os.path.dirname(path)
-    filename = os.path.basename(path)
-    self.execute("INSERT INTO files"
-                 "(pub_key, path, filename, st_mode, st_nlink, st_atime, st_mtime, st_ctime) "
-                 "VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}')".format(
-        public_key, dirname, filename, S_IFDIR | mode, 2, current_time, current_time, current_time))
-    if path != '/':
-      self.execute("UPDATE files SET st_nlink = st_nlink + 1 WHERE path='{}' AND pub_key='{}'".format(
-        '/', public_key))
+    dirname, filename = os.path.split(path)
+    new_dir = FileObject()
+    new_dir.attrs['st_mode'] = S_IFDIR | mode
+    new_dir.attrs['st_nlink'] = 2
+    new_dir.attrs['st_atime'] = current_time
+    new_dir.attrs['st_mtime'] = current_time
+    new_dir.attrs['st_ctime'] = current_time
+    fobj = get_file_object(dirname)
+    fobj.contents[filename] = new_dir
+    #if path != '/':
+    #  self.execute("UPDATE files SET st_nlink = st_nlink + 1 WHERE path='{}' AND pub_key='{}'".format(
+    #    '/', public_key))
     self.update_db_time()
-    self.commit()
 
   def list_directory(self, public_key, path):
-    c = self.execute("SELECT filename FROM files WHERE pub_key='{}' AND path='{}'".format(public_key, path))
-    rows = c.fetchall()
-    return [row[0] for row in rows if row[0]]
+    fobj = get_file_object(public_key, path)
+    return fobj.contents.keys()
 
   def file_exists(self, public_key, path):
-    dirname = os.path.dirname(path)
-    filename = os.path.basename(path)
-    c = self.execute("SELECT filename FROM files WHERE pub_key='{}' AND path='{}' AND filename='{}'".format(public_key, dirname, filename))
-    rows = c.fetchall()
-    return len(rows) >= 1
+    dirname, filename = os.path.split(path)
+    fobj = get_file_object(public_key, dirname)
+    return fobj.contents.has_key(filename)
 
