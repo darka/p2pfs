@@ -91,16 +91,18 @@ def main():
       reactor.callLater(6, file_service.publishDirectory, public_key, directory)
    
   
+    # just for informational purposes
     if args.newdb:
       print('> adding \'/\'')
-      file_db.add_directory(public_key, '/', 0755)
+
     l.log('Main', 'Node running.')
   
     def fuse_call():
       time.sleep(20)
       print('> filesystem running')
       debug = True
-      fuse = FUSE(FileSystem(l, public_key, file_db, file_service, args.content_directory), args.fs, foreground=True, debug=debug)
+      fsobj = FileSystem(l, public_key, file_db, file_service, args.content_directory)
+      fuse = FUSE(fsobj, args.fs, foreground=True, debug=debug)
   
     if args.fs:
       reactor.callInThread(fuse_call)
@@ -114,5 +116,5 @@ def main():
   reactor.run()
 
 if __name__ == '__main__':
-  cProfile.run('main()')
-  #main()
+  #cProfile.run('main()')
+  main()

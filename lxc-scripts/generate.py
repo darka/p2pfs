@@ -8,7 +8,7 @@ default_config = [
   ("lxc.utsname",        "vps0"),
   ("lxc.network.type",   "veth"),
   ("lxc.network.flags",  "up"), 
-  ("lxc.network.link",   "br0"), 
+  ("lxc.network.link",   "lxcbr0"), 
   ("lxc.network.hwaddr", "00:30:6E:08:EC:80"),
   ("lxc.network.ipv4",   "192.168.1.10"),
   ("lxc.network.name",   "eth0")
@@ -19,7 +19,7 @@ for key, value in default_config:
 	default_options[key] = value
 
 #starting_address = netaddr.IPAddress("192.168.1.10")
-starting_address = netaddr.IPAddress("10.0.2.16")
+starting_address = netaddr.IPAddress("10.0.3.2")
 directory = "lxc_config"
 total = 100
 

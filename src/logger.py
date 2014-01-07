@@ -4,7 +4,7 @@ import sys
 class Logger(object):
   def __init__(self, where=None):
     self.set_output(where)
-    self.DISABLED = True
+    self.DISABLED = False
 
   def set_output(self, where):
     if not where:
