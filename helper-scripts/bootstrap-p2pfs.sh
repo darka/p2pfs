@@ -1,7 +1,7 @@
 sudo cp sysctl.conf /etc/sysctl.conf
 sudo sysctl -p
 sudo apt-get update
-sudo apt-get install git subversion build-essential autoconf automake flex bison rpcbind pypy libsqlite3-dev python-dev pypy-dev unzip python-crypto
+sudo apt-get install git subversion build-essential autoconf automake flex bison rpcbind pypy libsqlite3-dev python-dev pypy-dev unzip python-crypto -y
 
 wget https://pypi.python.org/packages/source/z/zope.interface/zope.interface-4.0.5.zip
 unzip zope.interface-4.0.5.zip
@@ -40,4 +40,4 @@ cd pycrypto-2.6.1
 sudo pypy setup.py install
 cd ..
 
-git clone https://github.com/darka/p2pfs.git
+git clone https://darka@github.com/darka/p2pfs.git
