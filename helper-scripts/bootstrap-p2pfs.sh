@@ -41,3 +41,4 @@ sudo pypy setup.py install
 cd ..
 
 git clone https://darka@github.com/darka/p2pfs.git
+sudo chown ubuntu:ubuntu -R p2pfs
