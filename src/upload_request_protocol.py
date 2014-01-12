@@ -24,8 +24,6 @@ class UploadRequestProtocol(LineReceiver):
 
     contents = json.dumps({'command' : 'upload', 'path' : path, 'key' : key, 'hash' : hexhash})
 
-    self.l.log('file request finished')
-
     dirs = os.path.dirname(self.destination)
     if not os.path.exists(dirs):
       os.makedirs(dirs)
@@ -35,6 +33,7 @@ class UploadRequestProtocol(LineReceiver):
     self.sendLine(contents)
     self.setRawMode()
     self.df = defer.Deferred()
+    self.l.log('file request finished')
     return self.df
 
   def connectionLost(self, reason):

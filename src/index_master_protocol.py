@@ -14,6 +14,7 @@ class IndexMasterProtocol(LineReceiver):
     self.log('New Connection from {}'.format(ip))
 
   def lineReceived(self, data):
+    self.log('Sth received!')
     data = json.loads(data)
     self.command_name = data['command']
     self.log('Received: {}'.format(self.command_name))
@@ -67,6 +68,8 @@ class IndexMasterProtocol(LineReceiver):
         d.addCallback(self.transferCompleted)
       else:
         self.log('Cannot upload: no such key')
+    else:
+      self.log('Unrecognised command: {}'.format(self.command_name))
 
   def transferCompleted(self, lastsent):
     self.log('finished uploading')
@@ -74,6 +77,7 @@ class IndexMasterProtocol(LineReceiver):
     self.transport.loseConnection()
       
   def rawDataReceived(self, data):
+    self.log('so raw!')
     self.outfile.write(data)
     self.outfile_size += len(data)
 
