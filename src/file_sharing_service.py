@@ -26,6 +26,7 @@ class FileSharingService():
     if self.file_db.new: 
       self.file_db.ready()
       self.file_db.add_directory(self.key, '/', 0755)
+      self.file_db.publish()
       reactor.callLater(17, self.query_and_update_db_by_metadata)
     else:
       # download the database

@@ -21,7 +21,6 @@ class FileDatabase(object):
     if self.new or not os.path.exists(self.db_filename):
       self.data = {}
       self.update_db_time()
-      self.publish()
     else:
       self.load_data(self.db_filename)
     self.l.log('DB', 'READY')
