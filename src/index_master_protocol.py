@@ -46,6 +46,7 @@ class IndexMasterProtocol(LineReceiver):
         #print self.factory.file_service.storage
         self.sendLine(str(self.factory.file_service.storage[self.hash]['mtime']))
         self.transport.loseConnection()
+        self.log('Metadata sent and transport connection terminated')
       else:
         self.log('Cannot send metadata: no such key')
 

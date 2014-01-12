@@ -55,9 +55,9 @@ class FileSharingService():
         self.file_db.load_data(self.file_db.db_filename)
       else:
         self.log('{}: {} >= {}'.format(self.file_db.db_filename, mtime, metadata))
-    def handleError(_):
-      self.log('will update nothing')
     df.addCallback(handleMetadata)
+    if df.called:
+      self.log("already called.")
     reactor.callLater(5, self.query_and_update_db_by_metadata)
 
   def _setupTCPNetworking(self):
