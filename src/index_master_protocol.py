@@ -10,7 +10,7 @@ class IndexMasterProtocol(LineReceiver):
 
   def connectionMade(self):
     self.setLineMode()
-    self.log('Index Master Running')
+    self.log('New Connection')
 
   def lineReceived(self, data):
     data = json.loads(data)

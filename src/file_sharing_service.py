@@ -33,10 +33,10 @@ class FileSharingService():
       #db_path = os.path.join(self.file_dir, self.file_db.db_filename)
       def prepare_database(_):
         self.file_db.ready()
-	self.query_and_update_db_by_metadata()
       df = self.download(os.path.basename(self.file_db.db_filename), self.file_db.db_filename, self.key)
       #df = self.download(os.path.basename(self.file_db.db_filename), db_path, self.key)
       df.addCallback(prepare_database)
+      reactor.callLater(30, self.query_and_update_db_by_metadata)
 
   def log(self, message):
     self.l.log('FileService', message)
