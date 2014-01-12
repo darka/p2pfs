@@ -149,7 +149,7 @@ class FileSharingService():
     df = self.publishFileWithUpload(path, full_file_path, m_time)
     return df
 
-  def debug_contacts(contacts):
+  def debug_contacts(self, contacts):
     return [str(contact.address) for contact in contacts]
 
   def get_metadata(self, path, key):
