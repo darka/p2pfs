@@ -30,9 +30,11 @@ class FileSharingService():
     else:
       # download the database
       db_path = os.path.join(self.file_dir, self.file_db.db_filename)
-      reactor.callLater(7, self.download, os.path.basename(self.file_db.db_filename), db_path, self.key)
-      reactor.callLater(11, self.file_db.ready)
-      reactor.callLater(17, self.query_and_update_db_by_metadata)
+      def prepare_database(_):
+        self.file_db.ready()
+	self.query_and_update_db_by_metadata()
+      df = self.download(os.path.basename(self.file_db.db_filename), db_path, self.key)
+      df.addCallback(prepare_database)
 
   def log(self, message):
     self.l.log('FileService', message)

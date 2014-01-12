@@ -24,6 +24,7 @@ class FileDatabase(object):
       self.publish()
     else:
       self.load_data(self.db_filename)
+    self.l.log('DB', 'READY')
 
   def save_data(self):
     f = open(self.db_filename, 'w')
