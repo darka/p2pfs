@@ -11,7 +11,7 @@ class IndexMasterProtocol(LineReceiver):
   def connectionMade(self):
     self.setLineMode()
     ip = self.transport.getPeer().host
-    self.log('New Connection from {}')
+    self.log('New Connection from {}'.format(ip))
 
   def lineReceived(self, data):
     data = json.loads(data)
