@@ -31,8 +31,8 @@ class UploadRequestProtocol(LineReceiver):
 
     self.outfile = open(self.destination, 'wb')
     self.outfile_size = 0
-    self.setRawMode()
     self.sendLine(contents)
+    self.setRawMode()
     self.df = defer.Deferred()
     return self.df
 
