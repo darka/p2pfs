@@ -18,7 +18,7 @@ class UploadRequestProtocol(LineReceiver):
   def request_file(self, path, file_path, key, hash):
     self.destination = file_path
     hexhash = binascii.hexlify(hash)
-    self.l.log("uploadFile protocol working ({}, {}, {}, {})".format(path, file_path, key, hexhash))
+    self.l.log("upload request protocol working ({}, {}, {}, {})".format(path, file_path, key, hexhash))
 
     contents = json.dumps({'command' : 'upload', 'path' : path, 'key' : key, 'hash' : hexhash})
     self.sendLine(contents)

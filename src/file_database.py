@@ -26,6 +26,7 @@ class FileDatabase(object):
     self.l.log('DB', 'READY')
 
   def save_data(self):
+    self.l.log('DB', 'SAVING DB')
     f = open(self.db_filename, 'w')
     pickle.dump(self.data, f)
     f.close()
