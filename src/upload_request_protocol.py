@@ -10,7 +10,8 @@ class UploadRequestProtocol(LineReceiver):
     self.outfile_size = 0
 
   def connectionMade(self):
-    self.l.log('Connection was made (UploadRequestProtocol)')
+    ip = self.transport.getPeer().host
+    self.l.log('Connection was made (UploadRequestProtocol) to {}'.format(ip))
 
   def rawDataReceived(self, data):
     self.outfile.write(data)

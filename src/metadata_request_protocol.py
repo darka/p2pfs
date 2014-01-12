@@ -10,7 +10,8 @@ class MetadataRequestProtocol(LineReceiver):
     self.buffer = ''
 
   def connectionMade(self):
-    self.l.log('Connection was made (MetadataRequestProtocol)')
+    ip = self.transport.getPeer().host
+    self.l.log('Connection was made (MetadataRequestProtocol) to {}'.format(ip))
 
   def lineReceived(self, line):
     self.buffer = line
