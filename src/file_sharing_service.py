@@ -46,6 +46,7 @@ class FileSharingService():
     df = self.get_metadata(self.file_db.db_filename, self.key)
     def handleMetadata(metadata):
       mtime = self.file_db.get_db_mtime(self.key)
+      self.log('my: {}, their: {}'.format(mtime, metadata))
       if mtime < metadata:
         self.log('will redownload: {} ({} < {})'.format(self.file_db.db_filename, mtime, metadata))
         #db_path = os.path.join(self.file_dir, self.file_db.db_filename)
