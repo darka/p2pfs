@@ -16,10 +16,10 @@ class FileDatabase(object):
     self.db_filename = filename
     self.new = new
     self.l = logger
+    self.data = {'current_time' : 0}
 
   def ready(self):
     if self.new or not os.path.exists(self.db_filename):
-      self.data = {}
       self.update_db_time()
     else:
       self.load_data(self.db_filename)
