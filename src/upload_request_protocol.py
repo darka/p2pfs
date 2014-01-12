@@ -7,6 +7,7 @@ import json
 class UploadRequestProtocol(LineReceiver):
   def __init__(self, logger):
     self.l = logger
+    self.outfile_size = 0
 
   def connectionMade(self):
     self.l.log('Connection was made (UploadRequestProtocol)')
