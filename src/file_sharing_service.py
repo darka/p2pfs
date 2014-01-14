@@ -30,7 +30,8 @@ class FileSharingService():
       reactor.callLater(17, self.query_and_update_db_by_metadata)
     else:
       # download the database
-      db_path = os.path.join(self.file_dir, self.file_db.db_filename)
+      #db_path = os.path.join(self.file_dir, self.file_db.db_filename)
+      db_path = self.file_db.db_filename
       def prepare_database(_):
         self.file_db.ready()
       #df = self.download(os.path.basename(self.file_db.db_filename), self.file_db.db_filename, self.key)
@@ -49,7 +50,8 @@ class FileSharingService():
       self.log('my: {}, their: {}'.format(mtime, metadata))
       if mtime < metadata:
         self.log('will redownload: {} ({} < {})'.format(self.file_db.db_filename, mtime, metadata))
-        db_path = os.path.join(self.file_dir, self.file_db.db_filename)
+        #db_path = os.path.join(self.file_dir, self.file_db.db_filename)
+        db_path = self.file_db.db_filename
         self.download(os.path.basename(self.file_db.db_filename), db_path, self.key)
         #self.download(os.path.basename(self.file_db.db_filename), self.file_db.db_filename, self.key)
         self.file_db.load_data(self.file_db.db_filename)
