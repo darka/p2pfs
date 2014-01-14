@@ -25,7 +25,7 @@ class UploadRequestProtocol(LineReceiver):
     contents = json.dumps({'command' : 'upload', 'path' : path, 'key' : key, 'hash' : hexhash})
 
     dirs = os.path.dirname(self.destination)
-    if not os.path.exists(dirs):
+    if dirs and not os.path.exists(dirs):
       os.makedirs(dirs)
 
     self.outfile = open(self.destination, 'wb')

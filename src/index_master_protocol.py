@@ -32,7 +32,7 @@ class IndexMasterProtocol(LineReceiver):
         self.destination = os.path.join(self.factory.file_dir, self.filename)
 
       dirs = os.path.dirname(self.destination)
-      if not os.path.exists(dirs):
+      if dirs and not os.path.exists(dirs):
         os.makedirs(dirs)
 
       self.outfile = open(self.destination, 'wb')
