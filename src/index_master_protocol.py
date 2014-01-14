@@ -10,9 +10,11 @@ class IndexMasterProtocol(LineReceiver):
 
   def connectionMade(self):
     self.setLineMode()
-    self.log('Index Master Running')
+    ip = self.transport.getPeer().host
+    self.log('New Connection from {}'.format(ip))
 
   def lineReceived(self, data):
+    self.log('Sth received!')
     data = json.loads(data)
     self.command_name = data['command']
     self.log('Received: {}'.format(self.command_name))
@@ -30,7 +32,7 @@ class IndexMasterProtocol(LineReceiver):
         self.destination = os.path.join(self.factory.file_dir, self.filename)
 
       dirs = os.path.dirname(self.destination)
-      if not os.path.exists(dirs):
+      if dirs and not os.path.exists(dirs):
         os.makedirs(dirs)
 
       self.outfile = open(self.destination, 'wb')
@@ -45,6 +47,7 @@ class IndexMasterProtocol(LineReceiver):
         #print self.factory.file_service.storage
         self.sendLine(str(self.factory.file_service.storage[self.hash]['mtime']))
         self.transport.loseConnection()
+        self.log('Metadata sent and transport connection terminated')
       else:
         self.log('Cannot send metadata: no such key')
 
@@ -65,6 +68,8 @@ class IndexMasterProtocol(LineReceiver):
         d.addCallback(self.transferCompleted)
       else:
         self.log('Cannot upload: no such key')
+    else:
+      self.log('Unrecognised command: {}'.format(self.command_name))
 
   def transferCompleted(self, lastsent):
     self.log('finished uploading')
@@ -72,6 +77,7 @@ class IndexMasterProtocol(LineReceiver):
     self.transport.loseConnection()
       
   def rawDataReceived(self, data):
+    self.log('so raw!')
     self.outfile.write(data)
     self.outfile_size += len(data)
 

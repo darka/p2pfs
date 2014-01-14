@@ -7,9 +7,11 @@ import json
 class UploadRequestProtocol(LineReceiver):
   def __init__(self, logger):
     self.l = logger
+    self.outfile_size = 0
 
   def connectionMade(self):
-    self.l.log('Connection was made (UploadRequestProtocol)')
+    ip = self.transport.getPeer().host
+    self.l.log('Connection was made (UploadRequestProtocol) to {}'.format(ip))
 
   def rawDataReceived(self, data):
     self.outfile.write(data)
@@ -18,21 +20,20 @@ class UploadRequestProtocol(LineReceiver):
   def request_file(self, path, file_path, key, hash):
     self.destination = file_path
     hexhash = binascii.hexlify(hash)
-    self.l.log("uploadFile protocol working ({}, {}, {}, {})".format(path, file_path, key, hexhash))
+    self.l.log("upload request protocol working ({}, {}, {}, {})".format(path, file_path, key, hexhash))
 
     contents = json.dumps({'command' : 'upload', 'path' : path, 'key' : key, 'hash' : hexhash})
-    self.sendLine(contents)
-
-    self.l.log('file request finished')
 
     dirs = os.path.dirname(self.destination)
-    if not os.path.exists(dirs):
+    if dirs and not os.path.exists(dirs):
       os.makedirs(dirs)
 
     self.outfile = open(self.destination, 'wb')
     self.outfile_size = 0
+    self.sendLine(contents)
     self.setRawMode()
     self.df = defer.Deferred()
+    self.l.log('file request finished')
     return self.df
 
   def connectionLost(self, reason):
