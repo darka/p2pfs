@@ -181,6 +181,7 @@ class FileDatabase(object):
 
   def add_directory(self, public_key, path, mode):
     # hack to create top folder, this shouldn't be done at all ever!
+    self.l.log('adding directory {}'.format(path))
     if path == '/':
       self.get_file_object(public_key, '/', True)
       self.update_db_time()

@@ -45,9 +45,8 @@ class FileSystem(LoggingMixIn, Operations):
     contents = threads.blockingCallFromThread(reactor, self.file_db.list_directory, self.key, path)
     ret = ['.', '..'] 
     if contents:
-      return ret + contents
-    else:
-      return ret
+      ret += contents
+    return ret
 
   def unlink(self, path):
     threads.blockingCallFromThread(reactor, self.file_db.delete_file, self.key, path)
@@ -72,9 +71,9 @@ class FileSystem(LoggingMixIn, Operations):
     if os.path.exists(real_path) and not os.access(real_path, mode):
       raise FuseOSError(EACCES)
 
-  #opendir = None
+  opendir = None
   #release = None
-  #releasedir = None
+  releasedir = None
 
   def file_is_up_to_date(self, file_path_on_disk, path):
     if not os.path.isfile(file_path_on_disk):

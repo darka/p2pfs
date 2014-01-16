@@ -129,7 +129,8 @@ class FileSharingService():
     self.log('files: {}'.format(len(files)))
 
     for path in sorted(paths):
-      self.file_db.add_directory(key, path, 0775)
+      if path != '':
+        self.file_db.add_directory(key, path, 0775)
 
     for filename, path in files:
       # this is the path to file on the hard drive
@@ -164,9 +165,7 @@ class FileSharingService():
     self.log('Getting metadata for: {}'.format(filename))
     
     def getTargetNode(result):
-      #print result
-      #print self.storage
-      print self.debug_contacts(result)
+      #print self.debug_contacts(result)
       return result.pop()
 
     def getFile(protocol):
@@ -192,7 +191,7 @@ class FileSharingService():
     self.log('Downloading: {}'.format(path))
     
     def getTargetNode(result):
-      print self.debug_contacts(result)
+      #print self.debug_contacts(result)
       self.log("Target node: {}".format(str(result)))
       return result.pop()
 
