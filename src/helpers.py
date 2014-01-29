@@ -17,6 +17,9 @@ def upload_file(f, transport):
   d = sender.beginFileTransfer(f, transport, lambda data: data)
   return d
 
+# Encryption/decryption based on:
+# http://eli.thegreenplace.net/2010/06/25/aes-encryption-of-files-in-python-with-pycrypto/ 
+
 def encrypt_file(source, destination, key):
   chunk_size = 64*1024
 
