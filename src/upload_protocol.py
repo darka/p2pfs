@@ -24,7 +24,6 @@ class UploadProtocol(LineReceiver):
 
   def transferCompleted(self, lastsent):
     self.l.log('finished uploading')
-    self.infile.close()
     self.transport.loseConnection()
-
+    self.l.log('connection closed')
 

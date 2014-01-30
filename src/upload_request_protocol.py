@@ -42,6 +42,11 @@ class UploadRequestProtocol(LineReceiver):
       return
     self.l.log('Saved download to {}'.format(self.destination))
     self.tmp_destination_file.close()
-    decrypt_file(self.tmp_destination_file.name, self.destination, ENCRYPT_KEY)
-    self.df.callback(self.destination)
+    
+    d = threads.deferToThread(
+        decrypt_file, 
+        open(self.tmp_destination_file.name, 'rb'),
+        open(self.destination, 'wb'),
+        ENCRYPT_KEY)
+    d.chainDeferred(self.df)
 

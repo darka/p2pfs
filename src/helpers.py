@@ -14,20 +14,17 @@ def sha_hash(name):
   h.update(name)
   return h.digest()
 
-  
 def upload_file_with_encryption(filename, transport):
   infile = open(filename, 'r')
-  tmpfile = NamedTemporaryFile(delete=False)
-  d = threads.deferToThread(encrypt_file, infile, tmpfile, ENCRYPT_KEY)
-  d.addCallback(lambda tmpfile: upload_file(open(tmpfile, 'r'), transport))
-  return d
+  tmp_file = NamedTemporaryFile(delete=False)
+  d = threads.deferToThread(encrypt_file, infile, tmp_file, ENCRYPT_KEY)
+  d.addCallback(lambda tmp_file: (open(tmp_file, 'r'), transport))
+  return d.addCallback(upload_file)
 
 def upload_file(file, transport):
   sender = FileSender()
   sender.CHUNK_SIZE = 2 ** 16
-
-  d = sender.beginFileTransfer(file, transport, lambda data: data)
-  return d
+  return sender.beginFileTransfer(file, transport)
 
 # Encryption/decryption based on:
 # http://eli.thegreenplace.net/2010/06/25/aes-encryption-of-files-in-python-with-pycrypto/ 
@@ -50,8 +47,11 @@ def encrypt_file(file_in, file_out, key):
       chunk += ' ' * (16 - len(chunk) % 16)
     file_out.write(encryptor.encrypt(chunk))
     chunk = file_in.read(chunk_size)
+
   file_in.close()
   file_out.close()
+
+  print("Encrypted: {}".format(file_out.name))
   return file_out.name
 
 def decrypt_file(file_in, file_out, key):
@@ -71,8 +71,8 @@ def decrypt_file(file_in, file_out, key):
   file_out.truncate(orig_size)
   file_in.close()
   file_out.close()
+  print("Decrypted: {}".format(file_out.name))
   return file_out.name
-    
     
 def save_buffer(buffer, destination):
   real_file_path = os.path.dirname(destination)
