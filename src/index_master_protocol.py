@@ -1,4 +1,5 @@
 from twisted.protocols.basic import LineReceiver
+from tempfile import NamedTemporaryFile
 from helpers import *
 import os
 import json
@@ -35,7 +36,7 @@ class IndexMasterProtocol(LineReceiver):
       if dirs and not os.path.exists(dirs):
         os.makedirs(dirs)
 
-      self.outfile = open(self.destination, 'wb')
+      self.tmp_destination_file = NamedTemporaryFile(delete=False)
       self.outfile_size = 0
       self.setRawMode()
 
@@ -62,23 +63,20 @@ class IndexMasterProtocol(LineReceiver):
           file_path = os.path.join(self.factory.file_dir, data['path'][1:])
         else:
           file_path = os.path.join(self.factory.file_dir, data['path'])
-        self.infile = open(file_path, 'r')
         self.log('Uploading: {}'.format(file_path))
-        d = upload_file(self.infile, self.transport)
+        d = upload_file_with_encryption(file_path, self.transport)
         d.addCallback(self.transferCompleted)
       else:
         self.log('Cannot upload: no such key')
     else:
       self.log('Unrecognised command: {}'.format(self.command_name))
 
-  def transferCompleted(self, lastsent):
+  def transferCompleted(self, last_sent):
     self.log('finished uploading')
-    self.infile.close()
     self.transport.loseConnection()
       
   def rawDataReceived(self, data):
-    self.log('so raw!')
-    self.outfile.write(data)
+    self.tmp_destination_file.write(data)
     self.outfile_size += len(data)
 
   def connectionLost(self, reason):
@@ -88,7 +86,8 @@ class IndexMasterProtocol(LineReceiver):
         self.log("Error! Connection lost :(\n")
         return
       else:
-        self.outfile.close()
+        self.tmp_destination_file.close()
+        decrypt_file(self.tmp_destination_file.name, self.destination, ENCRYPT_KEY)
         self.factory.file_service.storage[self.hash] = {'key':self.key, 'filename':self.filename, 'mtime':int(self.mtime)}
         self.log('Stored: {} ({} bytes)'.format(self.filename, self.outfile_size))
 

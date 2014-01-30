@@ -16,8 +16,8 @@ class TestEncryptionFunctions(unittest.TestCase):
 
   def testEncryption(self):
     key = hashlib.sha256('test123').digest()
-    encrypt_file(self.orig_filename, self.enc_filename, key)
-    decrypt_file(self.enc_filename, self.dec_filename, key)
+    encrypt_file(open(self.orig_filename, 'rb'), open(self.enc_filename, 'wb'), key)
+    decrypt_file(open(self.enc_filename, 'rb'), open(self.dec_filename, 'wb'), key)
 
     decrypted_contents = open(self.dec_filename, 'rb').read()
     self.assertTrue(self.contents == decrypted_contents)
