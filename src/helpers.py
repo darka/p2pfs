@@ -7,6 +7,8 @@ import random
 import os
 import hashlib
 
+# For testing purposes, all users of the file system share the same AES key.
+# This is good enough for performance measurement.
 ENCRYPT_KEY = 'testtesttesttest'
 
 def sha_hash(name):
