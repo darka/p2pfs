@@ -30,11 +30,9 @@ class FileSharingService():
       reactor.callLater(17, self.query_and_update_db_by_metadata)
     else:
       # download the database
-      #db_path = os.path.join(self.file_dir, self.file_db.db_filename)
       db_path = self.file_db.db_filename
       def prepare_database(_):
         self.file_db.ready()
-      #df = self.download(os.path.basename(self.file_db.db_filename), self.file_db.db_filename, self.key)
       df = self.download(os.path.basename(self.file_db.db_filename), db_path, self.key)
       df.addCallback(prepare_database)
       reactor.callLater(30, self.query_and_update_db_by_metadata)
@@ -50,10 +48,8 @@ class FileSharingService():
       self.log('my: {}, their: {}'.format(mtime, metadata))
       if mtime < metadata:
         self.log('will redownload: {} ({} < {})'.format(self.file_db.db_filename, mtime, metadata))
-        #db_path = os.path.join(self.file_dir, self.file_db.db_filename)
         db_path = self.file_db.db_filename
         self.download(os.path.basename(self.file_db.db_filename), db_path, self.key)
-        #self.download(os.path.basename(self.file_db.db_filename), self.file_db.db_filename, self.key)
         self.file_db.load_data(self.file_db.db_filename)
       else:
         self.log('{}: {} >= {}'.format(self.file_db.db_filename, mtime, metadata))
@@ -63,7 +59,6 @@ class FileSharingService():
     reactor.callLater(5, self.query_and_update_db_by_metadata)
 
   def _setupTCPNetworking(self):
-    # Next lines are magic:
     self.factory = ServerFactory()
     self.factory.protocol = IndexMasterProtocol
     self.factory.file_service = self

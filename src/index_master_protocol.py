@@ -20,11 +20,11 @@ class IndexMasterProtocol(LineReceiver):
     self.log('Received: {}'.format(self.command_name))
 
     if self.command_name == 'store':
+      self.log("Index Master received: {} ({})".format(data['path'], data['hash']))
       self.filename = data['path']
       self.key = data['key']
       self.hash = binascii.unhexlify(data['hash'])
       self.mtime = data['time']
-      self.log("Index Master received: {}".format(self.filename))
       # hack
       if self.filename[0] == '/':
         self.destination = os.path.join(self.factory.file_dir, self.filename[1:])
@@ -52,7 +52,7 @@ class IndexMasterProtocol(LineReceiver):
         self.log('Cannot send metadata: no such key')
 
     elif self.command_name == 'upload':
-      self.log('upload: {}'.format(self.command_name))
+      self.log('upload: {}'.format(data['hash']))
       self.hash = binascii.unhexlify(data['hash'])
 
       if self.factory.file_service.storage.has_key(self.hash):
@@ -81,6 +81,7 @@ class IndexMasterProtocol(LineReceiver):
 
   def addStorage(self, hash, key, filename, mtime):
     #self.factory.file_service.storage[self.hash] = {'key':self.key, 'filename':self.filename, 'mtime':int(self.mtime)}
+    print('stored {}'.format(filename))
     self.factory.file_service.storage[hash] = {
         'key': key, 
         'filename': filename, 
@@ -101,7 +102,7 @@ class IndexMasterProtocol(LineReceiver):
             open(self.tmp_destination_file.name, 'rb'), 
             open(self.destination, 'wb'),
             ENCRYPT_KEY)
-        d.addCallback(lambda _ : addStorage(self.hash, self.key, self.filename, self.mtime))
+        d.addCallback(lambda _ : self.addStorage(self.hash, self.key, self.filename, self.mtime))
         self.log('Stored: {} ({} bytes)'.format(self.filename, self.outfile_size))
 
     elif self.command_name == 'tell_metadata':
