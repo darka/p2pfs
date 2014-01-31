@@ -1,4 +1,5 @@
 from twisted.protocols.basic import LineReceiver
+from tempfile import NamedTemporaryFile
 from helpers import *
 import os
 import json
@@ -14,17 +15,16 @@ class IndexMasterProtocol(LineReceiver):
     self.log('New Connection from {}'.format(ip))
 
   def lineReceived(self, data):
-    self.log('Sth received!')
     data = json.loads(data)
     self.command_name = data['command']
     self.log('Received: {}'.format(self.command_name))
 
     if self.command_name == 'store':
+      self.log("Index Master received: {} ({})".format(data['path'], data['hash']))
       self.filename = data['path']
       self.key = data['key']
       self.hash = binascii.unhexlify(data['hash'])
       self.mtime = data['time']
-      self.log("Index Master received: {}".format(self.filename))
       # hack
       if self.filename[0] == '/':
         self.destination = os.path.join(self.factory.file_dir, self.filename[1:])
@@ -35,7 +35,7 @@ class IndexMasterProtocol(LineReceiver):
       if dirs and not os.path.exists(dirs):
         os.makedirs(dirs)
 
-      self.outfile = open(self.destination, 'wb')
+      self.tmp_destination_file = NamedTemporaryFile(delete=False)
       self.outfile_size = 0
       self.setRawMode()
 
@@ -52,7 +52,7 @@ class IndexMasterProtocol(LineReceiver):
         self.log('Cannot send metadata: no such key')
 
     elif self.command_name == 'upload':
-      self.log('upload: {}'.format(self.command_name))
+      self.log('upload: {}'.format(data['hash']))
       self.hash = binascii.unhexlify(data['hash'])
 
       if self.factory.file_service.storage.has_key(self.hash):
@@ -62,34 +62,47 @@ class IndexMasterProtocol(LineReceiver):
           file_path = os.path.join(self.factory.file_dir, data['path'][1:])
         else:
           file_path = os.path.join(self.factory.file_dir, data['path'])
-        self.infile = open(file_path, 'r')
         self.log('Uploading: {}'.format(file_path))
-        d = upload_file(self.infile, self.transport)
+        d = upload_file_with_encryption(file_path, self.transport)
         d.addCallback(self.transferCompleted)
       else:
         self.log('Cannot upload: no such key')
     else:
       self.log('Unrecognised command: {}'.format(self.command_name))
 
-  def transferCompleted(self, lastsent):
+  def transferCompleted(self, last_sent):
     self.log('finished uploading')
-    self.infile.close()
     self.transport.loseConnection()
       
   def rawDataReceived(self, data):
-    self.log('so raw!')
-    self.outfile.write(data)
+    self.log('raw data received ({})'.format(len(data)))
+    self.tmp_destination_file.write(data)
     self.outfile_size += len(data)
 
+  def addStorage(self, hash, key, filename, mtime):
+    #self.factory.file_service.storage[self.hash] = {'key':self.key, 'filename':self.filename, 'mtime':int(self.mtime)}
+    print('stored {}'.format(filename))
+    self.factory.file_service.storage[hash] = {
+        'key': key, 
+        'filename': filename, 
+        'mtime': int(mtime)
+    }
+    
   def connectionLost(self, reason):
+    self.log('Index master lost connection.')
     if self.command_name == 'store':
       self.setLineMode()
       if self.outfile_size == 0:
         self.log("Error! Connection lost :(\n")
         return
       else:
-        self.outfile.close()
-        self.factory.file_service.storage[self.hash] = {'key':self.key, 'filename':self.filename, 'mtime':int(self.mtime)}
+        self.tmp_destination_file.close()
+        d = threads.deferToThread(
+            decrypt_file, 
+            open(self.tmp_destination_file.name, 'rb'), 
+            open(self.destination, 'wb'),
+            ENCRYPT_KEY)
+        d.addCallback(lambda _ : self.addStorage(self.hash, self.key, self.filename, self.mtime))
         self.log('Stored: {} ({} bytes)'.format(self.filename, self.outfile_size))
 
     elif self.command_name == 'tell_metadata':

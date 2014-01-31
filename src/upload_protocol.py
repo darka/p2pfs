@@ -1,5 +1,6 @@
 from twisted.protocols.basic import LineReceiver
 from helpers import *
+from tempfile import NamedTemporaryFile
 import binascii
 import json
 
@@ -16,15 +17,13 @@ class UploadProtocol(LineReceiver):
     contents = json.dumps({'command' : 'store', 'path' : path, 'key' : key, 'hash' : binascii.hexlify(hash), 'time' : str(mtime)})
     self.sendLine(contents)
 
-    self.infile = open(file_path, 'r')
-    d = upload_file(self.infile, self.transport)
+    d = upload_file_with_encryption(file_path, self.transport)
     d.addCallback(self.transferCompleted)
 
     self.l.log('started uploading')
 
   def transferCompleted(self, lastsent):
     self.l.log('finished uploading')
-    self.infile.close()
     self.transport.loseConnection()
-
+    self.l.log('connection closed')
 
