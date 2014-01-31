@@ -14,14 +14,23 @@ def sha_hash(name):
   h.update(name)
   return h.digest()
 
+def test1(x):
+  print 'test 1'
+  return x
+
+def test2(x):
+  print 'test 2'
+  return x
+
 def upload_file_with_encryption(filename, transport):
   infile = open(filename, 'r')
   tmp_file = NamedTemporaryFile(delete=False)
   d = threads.deferToThread(encrypt_file, infile, tmp_file, ENCRYPT_KEY)
-  d.addCallback(lambda tmp_file: (open(tmp_file, 'r'), transport))
-  return d.addCallback(upload_file)
+  d.addCallback(lambda tmp_file: open(tmp_file, 'rb'))
+  return d.addCallback(upload_file, transport)
 
 def upload_file(file, transport):
+  print 'beginning upload'
   sender = FileSender()
   sender.CHUNK_SIZE = 2 ** 16
   return sender.beginFileTransfer(file, transport)
