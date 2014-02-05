@@ -21,7 +21,7 @@ class FileSharingService():
     self.file_db = file_db
     self.file_db.file_service = self
 
-    self._setupTCPNetworking()
+    self._setup_tcp()
 
     if self.file_db.new: 
       self.file_db.ready()
@@ -58,7 +58,7 @@ class FileSharingService():
       self.log("already called.")
     reactor.callLater(5, self.query_and_update_db_by_metadata)
 
-  def _setupTCPNetworking(self):
+  def _setup_tcp(self):
     self.factory = ServerFactory()
     self.factory.protocol = IndexMasterProtocol
     self.factory.file_service = self

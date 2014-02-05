@@ -39,34 +39,6 @@ class FileDatabase(object):
   def load_data(self, filename):
     self.data = pickle.load(open(filename))
     
-  #def create_tables(self):
-  #  try:
-  #    self.execute('''DROP TABLE files''')
-  #  except sqlite3.OperationalError:
-  #    self.l.log('DB', 'Could not drop table')
-  #  self.execute(
-  #        "CREATE TABLE files ("
-  #        "pub_key text, "
-  #        "filename text, "
-  #        "path text, "
-  #        "st_mode integer, "
-  #        "st_uid integer, "
-  #        "st_gid integer, "
-  #        "st_atime integer DEFAULT 0, "
-  #        "st_mtime integer DEFAULT 0, "
-  #        "st_ctime integer DEFAULT 0, "
-  #        "st_nlink integer DEFAULT 1, "
-  #        "st_size integer DEFAULT 0, "
-  #        "is_internal integer DEFAULT 0, "
-  #        "PRIMARY KEY(path, filename, pub_key))")
-  #  current_time = int(time.time())
-  #  self.execute("INSERT INTO files"
-  #               "(pub_key, is_internal, filename, path, st_mode, st_atime, st_mtime, st_ctime, st_size) "
-  #               "VALUES('{}', 1, 'DB', 'DB', {}, {}, {}, {}, {})".format(
-  #      self.key, 0, current_time, current_time, current_time, 0))
-
-  #  self.commit()
-
   def get_file_object(self, public_key, path, create_parents=False):
     path = path.split('/')
     result = self.data.get(public_key)
@@ -198,9 +170,7 @@ class FileDatabase(object):
     new_dir.attrs['st_ctime'] = current_time
     fobj = self.get_file_object(public_key, dirname, True)
     fobj.contents[filename] = new_dir
-    #if path != '/':
-    #  self.execute("UPDATE files SET st_nlink = st_nlink + 1 WHERE path='{}' AND pub_key='{}'".format(
-    #    '/', public_key))
+
     self.update_db_time()
     self.publish()
 
