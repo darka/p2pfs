@@ -79,7 +79,7 @@ class IndexMasterProtocol(LineReceiver):
     self.tmp_destination_file.write(data)
     self.outfile_size += len(data)
 
-  def addStorage(self, hash, key, filename, mtime):
+  def add_storage(self, hash, key, filename, mtime):
     #self.factory.file_service.storage[self.hash] = {'key':self.key, 'filename':self.filename, 'mtime':int(self.mtime)}
     print('stored {}'.format(filename))
     self.factory.file_service.storage[hash] = {
@@ -102,7 +102,7 @@ class IndexMasterProtocol(LineReceiver):
             open(self.tmp_destination_file.name, 'rb'), 
             open(self.destination, 'wb'),
             ENCRYPT_KEY)
-        d.addCallback(lambda _ : self.addStorage(self.hash, self.key, self.filename, self.mtime))
+        d.addCallback(lambda _ : self.add_storage(self.hash, self.key, self.filename, self.mtime))
         self.log('Stored: {} ({} bytes)'.format(self.filename, self.outfile_size))
 
     elif self.command_name == 'tell_metadata':

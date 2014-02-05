@@ -88,7 +88,7 @@ def main():
     file_service = FileSharingService(l, node, args.port, public_key, file_db, args.content_directory)
   
     for directory in args.shared:
-      reactor.callLater(6, file_service.publishDirectory, public_key, directory)
+      reactor.callLater(6, file_service.publish_directory, public_key, directory)
    
   
     # just for informational purposes

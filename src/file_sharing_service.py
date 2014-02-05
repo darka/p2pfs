@@ -43,7 +43,7 @@ class FileSharingService():
   def query_and_update_db_by_metadata(self):
     """Continuously queries the network for a new version of the user's file database."""
     df = self.get_metadata(self.file_db.db_filename, self.key)
-    def handleMetadata(metadata):
+    def handle_metadata(metadata):
       mtime = self.file_db.get_db_mtime(self.key)
       self.log('my: {}, their: {}'.format(mtime, metadata))
       if mtime < metadata:
@@ -53,7 +53,7 @@ class FileSharingService():
         self.file_db.load_data(self.file_db.db_filename)
       else:
         self.log('{}: {} >= {}'.format(self.file_db.db_filename, mtime, metadata))
-    df.addCallback(handleMetadata)
+    df.addCallback(handle_metadata)
     if df.called:
       self.log("already called.")
     reactor.callLater(5, self.query_and_update_db_by_metadata)
@@ -71,16 +71,16 @@ class FileSharingService():
   def search(self, keyword):
     return self.node.searchForKeywords(keyword)
   
-  def publishFileWithUpload(self, path, local_file_path, m_time):
+  def publish_file_with_upload(self, path, local_file_path, m_time):
     key = sha_hash(path)
     self.log('publishing file {} ({})'.format(path, local_file_path))
 
-    def uploadFile(protocol):
+    def upload_file(protocol):
       if protocol != None:
-        self.log("uploadFile {} {}".format(path, local_file_path))
-        protocol.uploadFile(path, local_file_path, self.key, key, m_time)
+        self.log("upload file {} {}".format(path, local_file_path))
+        protocol.upload_file(path, local_file_path, self.key, key, m_time)
 
-    def uploadFileToPeers(contacts):
+    def upload_file_to_peers(contacts):
       outerDf = defer.Deferred()
       if not contacts:
         self.log("Could not reach any peers. ({})".format(str(contacts)))
@@ -88,17 +88,17 @@ class FileSharingService():
         for contact in contacts:
           c = ClientCreator(reactor, UploadProtocol, self.l)
           df = c.connectTCP(contact.address, contact.port)
-          df.addCallback(uploadFile)
+          df.addCallback(upload_file)
           self.log("Will upload '{}' to: {}".format(local_file_path, contact))
           outerDf.chainDeferred(df)
       return outerDf
     
 
     df = self.node.iterativeFindNode(key)
-    df.addCallback(uploadFileToPeers)
+    df.addCallback(upload_file_to_peers)
     return df
 
-  def publishDirectory(self, key, path):
+  def publish_directory(self, key, path):
     def cut_path_off(starting_path, current_path):
       for i, j in enumerate(starting_path):
         if current_path[i] != j:
@@ -148,7 +148,7 @@ class FileSharingService():
     self.log('--> {}'.format(path))
     hash = sha_hash(path)
     self.storage[hash] = {'key':key, 'filename':path, 'mtime':int(m_time)}
-    df = self.publishFileWithUpload(path, full_file_path, m_time)
+    df = self.publish_file_with_upload(path, full_file_path, m_time)
     return df
 
   def debug_contacts(self, contacts):
@@ -159,15 +159,15 @@ class FileSharingService():
     hash = sha_hash(filename)
     self.log('Getting metadata for: {}'.format(filename))
     
-    def getTargetNode(result):
+    def get_target_node(result):
       #print self.debug_contacts(result)
       return result.pop()
 
-    def getFile(protocol):
+    def get_file(protocol):
       if protocol != None:
         return protocol.request_metadata(filename, key, hash)
 
-    def connectToPeer(contact):
+    def connect_to_peer(contact):
       if contact == None:
         self.log("The host that published this file is no longer on-line.\n")
       else:
@@ -176,25 +176,25 @@ class FileSharingService():
         return df
     
     df = self.node.iterativeFindValue(hash)
-    df.addCallback(getTargetNode)
-    df.addCallback(connectToPeer)
-    df.addCallback(getFile)
+    df.addCallback(get_target_node)
+    df.addCallback(connect_to_peer)
+    df.addCallback(get_file)
     return df
  
   def download(self, path, destination, key, update_time=False):
     hash = sha_hash(path)
     self.log('Downloading: {}'.format(path))
     
-    def getTargetNode(result):
+    def get_target_node(result):
       #print self.debug_contacts(result)
       self.log("Target node: {}".format(str(result)))
       return result.pop()
 
-    def getFile(protocol):
+    def get_file(protocol):
       if protocol != None:
         return protocol.request_file(path, destination, key, hash)
 
-    def connectToPeer(contact):
+    def connect_to_peer(contact):
       if contact == None:
         self.log("File could not be retrieved.\nThe host that published this file is no longer on-line.\n")
       else:
@@ -202,7 +202,7 @@ class FileSharingService():
         df = c.connectTCP(contact.address, contact.port)
         return df
     
-    def updateTime(full_file_path):
+    def update_time(full_file_path):
       update_time = self.file_db.get_file_mtime(key, path)
       if update_time == 0: 
         return
@@ -210,10 +210,10 @@ class FileSharingService():
       self.log('changed {} mtime to {}'.format(full_file_path, update_time))
       
     df = self.node.iterativeFindValue(hash)
-    df.addCallback(getTargetNode)
-    df.addCallback(connectToPeer)
-    df.addCallback(getFile)
+    df.addCallback(get_target_node)
+    df.addCallback(connect_to_peer)
+    df.addCallback(get_file)
     if update_time:
-      df.addCallback(updateTime)
+      df.addCallback(update_time)
     return df
  

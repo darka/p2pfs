@@ -11,7 +11,7 @@ class UploadProtocol(LineReceiver):
   def connectionMade(self):
     self.l.log('Connection was made (UploadProtocol)')
 
-  def uploadFile(self, path, file_path, key, hash, mtime):
+  def upload_file(self, path, file_path, key, hash, mtime):
     self.l.log("uploadFile protocol working, mtime: {}".format(mtime))
 
     contents = json.dumps({'command' : 'store', 'path' : path, 'key' : key, 'hash' : binascii.hexlify(hash), 'time' : str(mtime)})
