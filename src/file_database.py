@@ -124,6 +124,7 @@ class FileDatabase(object):
     self.publish()
 
   def add_file(self, public_key, path, mode, size):
+    self.l.log("Adding file: {}".format(path))
     new_file = FileObject()
     current_time = int(time.time())
     new_file.attrs['st_mode'] = S_IFREG | mode

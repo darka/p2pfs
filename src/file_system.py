@@ -76,6 +76,7 @@ class FileSystem(LoggingMixIn, Operations):
   releasedir = None
 
   def file_is_up_to_date(self, file_path_on_disk, path):
+    self.log('Is file up to date? {}'.format(file_path_on_disk))
     if not os.path.isfile(file_path_on_disk):
       return False
     if os.stat(file_path_on_disk).st_mtime < threads.blockingCallFromThread(reactor, self.file_db.get_file_mtime, self.key, path):

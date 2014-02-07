@@ -139,6 +139,11 @@ class FileSharingService():
       shutil.copyfile(orig_path, full_file_path)
       
       size = os.path.getsize(full_file_path)
+
+      # hack, need to look at the code beforehand to fix this
+      if path == '':
+        path = '/'
+
       file_path = os.path.join(path, filename) # 'virtual' path inside database
       self.file_db.add_file(key, file_path, 0777, size)
       m_time = self.file_db.get_file_mtime(self.key, file_path)
