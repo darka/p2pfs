@@ -33,7 +33,6 @@ class UploadRequestProtocol(LineReceiver):
     self.sendLine(contents)
     self.setRawMode()
     self.df = defer.Deferred()
-    self.l.log('file request finished')
     return self.df
 
   def connectionLost(self, reason):

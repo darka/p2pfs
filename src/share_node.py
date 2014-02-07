@@ -107,9 +107,6 @@ def main():
     if args.fs:
       reactor.callInThread(fuse_call)
 
-  #processor = CommandProcessor(file_service)
-  #reactor.callInThread(processor.cmdloop)
-
   print('> reactor running')
   reactor.callLater(2, prepare)
 

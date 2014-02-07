@@ -181,9 +181,9 @@ class FileSharingService():
     df.addCallback(get_file)
     return df
  
-  def download(self, path, destination, key, update_time=False):
+  def download(self, path, destination, key, should_update_time=False):
     hash = sha_hash(path)
-    self.log('Downloading: {}'.format(path))
+    self.log('Downloading: {}({})'.format(path, should_update_time))
     
     def get_target_node(result):
       #print self.debug_contacts(result)
@@ -191,6 +191,7 @@ class FileSharingService():
       return result.pop()
 
     def get_file(protocol):
+      self.log('Requesting file.')
       if protocol != None:
         return protocol.request_file(path, destination, key, hash)
 
@@ -203,17 +204,23 @@ class FileSharingService():
         return df
     
     def update_time(full_file_path):
+      self.log('will update time for: {}'.format(full_file_path))
       update_time = self.file_db.get_file_mtime(key, path)
+      self.log('update_time: {}'.format(update_time))
       if update_time == 0: 
         return
       os.utime(full_file_path, (update_time, update_time))
       self.log('changed {} mtime to {}'.format(full_file_path, update_time))
+
+    def log_message(_):
+      self.log('Downloaded {}.'.format(path))
       
     df = self.node.iterativeFindValue(hash)
     df.addCallback(get_target_node)
     df.addCallback(connect_to_peer)
     df.addCallback(get_file)
-    if update_time:
+    if should_update_time:
       df.addCallback(update_time)
+    df.addCallback(log_message)
     return df
  
