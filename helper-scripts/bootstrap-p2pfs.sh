@@ -43,7 +43,10 @@ cd ..
 git clone https://darka@github.com/darka/p2pfs.git
 sudo chown ubuntu:ubuntu -R p2pfs
 
+sudo adduser ubuntu fuse
+
 mkdir tmp
 cd tmp/
 wget http://www.irssi.org/files/irssi-0.8.16-rc1.tar.gz
+tar xvzf irssi-0.8.16-rc1.tar.gz
 cd ..
