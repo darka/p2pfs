@@ -18,6 +18,9 @@ resources_location = "/home/ubuntu/p2pfs/src/res/"
 node_location = os.path.join(location, 'src', 'share_node.py')
 base_command = node_location + " --port 2000"
 
+#python_command = sys.executable
+python_command = "/usr/bin/pypy"
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--count', '-c', type=int, dest='container_count', required=True)
 parser.add_argument('--simulate', default=False, action='store_true')
@@ -26,7 +29,7 @@ args = parser.parse_args()
 total = args.container_count
 
 #starting_address = netaddr.IPAddress("192.168.1.10")
-starting_address = netaddr.IPAddress("10.0.2.16")
+starting_address = netaddr.IPAddress("10.0.3.2")
 
 new_address = starting_address
 addresses = [('{}000'.format(prec), starting_address)]
@@ -39,12 +42,11 @@ for i in xrange(0, total-1):
 print [a for a in addresses]
 
 current = 0
-shares = { 1 : os.path.join(location, 'src', 'pngs'),
-           2 : os.path.join(location, 'src', 'more_pngs') }
+shares = { 1 : os.path.join('/home/ubuntu/test_pics') }
 
 def run_subprocess(address, command, fake=False):
     time.sleep(0.5)
-    command_parts = ['lxc-execute', '-n', address[0], '--', sys.executable] + command.split()
+    command_parts = ['lxc-execute', '-n', address[0], '--', python_command] + command.split()
     print(' '.join(command_parts))
     if not fake:
       subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=location)
