@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import threading
 import paramiko
 import sys
@@ -7,13 +8,21 @@ import argparse
 logs_folder = 'logs'
 logs_err_folder = os.path.join(logs_folder, 'err')
 
-def ssh_run(host, commands):
+def perform_host(host, filenames, commands):
   ssh = paramiko.SSHClient()
   ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
   ssh.connect(host)
 
   out = open(os.path.join(logs_folder, host + '.log'), 'w')
   out_err = open(os.path.join(logs_err_folder, host + '.logerr'), 'w')
+
+  if filenames:
+    sftp = ssh.open_sftp()
+  
+    for filename in filenames:
+      sftp.put(os.path.join(os.getcwd(), filename), os.path.join('.', filename))
+      out.write('>> Uploaded: {0}\n'.format(filename))
+
   for command in commands:
     command = command.strip()
     if command.startswith('#'):
@@ -23,13 +32,17 @@ def ssh_run(host, commands):
     out.write(stdout.read())
     out_err.write(stderr.read())
 
+    out.flush()
+    out_err.flush()
+
   out_err.close()
   out.close()
 
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--hosts', required=True)
-  parser.add_argument('--commands', required=True)
+  parser.add_argument('--commands', required=False)
+  parser.add_argument('--files', required=False, nargs='*')
   args = parser.parse_args()
 
   if not os.path.exists(logs_folder):
@@ -45,10 +58,11 @@ def main():
   f.close()
 
   threads = []
-  commands = open(args.commands, 'r').readlines()
+  commands = open(args.commands, 'r').readlines() if args.commands else []
+
   for host in hosts:
     print host
-    t = threading.Thread(target=ssh_run, args=(host,commands))
+    t = threading.Thread(target=perform_host, args=(host, args.files, commands))
     t.start()
     threads.append(t)
 
