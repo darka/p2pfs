@@ -24,3 +24,21 @@ def bootstrap():
   put('bootstrap-p2pfs.sh', '~/')
   put('sysctl.conf', '~/')
   sudo('sh bootstrap-p2pfs.sh')
+
+def prepare_dirs():
+  run('mkdir -p ~/p2pfs/work/res')
+
+def upload_run_scripts():
+  put('host.sh', '~/p2pfs/', mirror_local_mode=True)
+  put('connect.sh', '~/p2pfs/', mirror_local_mode=True)
+  #put('connect-all.sh', '~/p2pfs/')
+  #put('connect-new.sh', '~/p2pfs/')
+  #put('connect-and-mount.sh', '~/p2pfs/')
+
+def connect():
+  with cd('~/p2pfs/'):
+    run('./connect.sh')
+
+def host():
+  with cd('~/p2pfs/'):
+    run('./host.sh')
