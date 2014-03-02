@@ -27,13 +27,19 @@ def bootstrap():
 
 def prepare_dirs():
   run('mkdir -p ~/p2pfs/work/res')
+  run('mkdir -p ~/p2pfs/testfs')
 
-def upload_run_scripts():
+def upload_scripts():
   put('host.sh', '~/p2pfs/', mirror_local_mode=True)
   put('connect.sh', '~/p2pfs/', mirror_local_mode=True)
   #put('connect-all.sh', '~/p2pfs/')
   #put('connect-new.sh', '~/p2pfs/')
-  #put('connect-and-mount.sh', '~/p2pfs/')
+  put('connect-mount.sh', '~/p2pfs/', mirror_local_mode=True)
+  put('connect-new.sh', '~/p2pfs/', mirror_local_mode=True)
+
+def connect_mount():
+  with cd('~/p2pfs/'):
+    run('./connect-mount.sh')
 
 def connect():
   with cd('~/p2pfs/'):
@@ -42,3 +48,4 @@ def connect():
 def host():
   with cd('~/p2pfs/'):
     run('./host.sh')
+
