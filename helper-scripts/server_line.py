@@ -2,11 +2,8 @@
 import sys
 import os
 
-def main():
-  if len(sys.argv) != 2:
-    print 'Usage: server-line.py FILENAME'
-    sys.exit(1)
-  f = open(sys.argv[1])
+def make_server_line(filename):
+  f = open(filename)
   hosts = []
   for l in f.readlines():
     l = l.strip()
@@ -15,7 +12,14 @@ def main():
     host = l.split()[0]
     hosts.append(host)
   f.close()
-  print ','.join(hosts)
+  return ','.join(hosts)
+
+def main():
+  if len(sys.argv) != 2:
+    print 'Usage: server-line.py FILENAME'
+    sys.exit(1)
+  filename = sys.argv[1]
+  print make_server_line(filename)
 
 if __name__ == '__main__':
   main()

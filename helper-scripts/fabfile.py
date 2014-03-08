@@ -28,6 +28,8 @@ def bootstrap():
 def prepare_dirs():
   run('mkdir -p ~/p2pfs/work/res')
   run('mkdir -p ~/p2pfs/testfs')
+  run('mkdir -p ~/tmp')
+  sudo('chown ubuntu:ubuntu /home/ubuntu/tmp', warn_only=True)
 
 def upload_scripts():
   put('host.sh', '~/p2pfs/', mirror_local_mode=True)
@@ -37,9 +39,18 @@ def upload_scripts():
   put('connect-mount.sh', '~/p2pfs/', mirror_local_mode=True)
   put('connect-new.sh', '~/p2pfs/', mirror_local_mode=True)
 
+def get_ed():
+  with cd('~/tmp/'):
+    run('wget http://ftp.unicamp.br/pub/gnu/ed/ed-1.9.tar.gz')
+    run('tar xvzf ed-1.9.tar.gz')
+
 def connect_mount():
   with cd('~/p2pfs/'):
     run('./connect-mount.sh')
+
+def connect_new():
+  with cd('~/p2pfs/'):
+    run('./connect-new.sh')
 
 def connect():
   with cd('~/p2pfs/'):
@@ -49,3 +60,8 @@ def host():
   with cd('~/p2pfs/'):
     run('./host.sh')
 
+def unmount():
+  sudo('umount /home/ubuntu/p2pfs/testfs', warn_only=True)
+
+def kill_pypy():
+  run('killall pypy', warn_only=True)
