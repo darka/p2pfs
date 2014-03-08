@@ -15,6 +15,10 @@ def upload_keys():
     full_path = os.path.join(path, filename)
     put(full_path, '~/p2pfs/src/keys/')
 
+def pull():
+  with cd('~/p2pfs/'):
+    run('git pull')
+
 def fix_sudoers():
   n = random.randint(1, 100)
   put('sudoers', '~/.tmp-sudoers-{0}'.format(n), mode=0440)
