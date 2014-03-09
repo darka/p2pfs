@@ -8,6 +8,9 @@ def runbg(cmd):
 def fix_boot():
   local('./fix-server.sh {0}'.format(env.host))
 
+def lsres():
+  run('ls p2pfs/work/res')
+
 def ls():
   run('ls')
 
@@ -45,28 +48,37 @@ def upload_scripts():
   #put('connect-new.sh', '~/p2pfs/')
   put('connect-mount.sh', '~/p2pfs/', mirror_local_mode=True)
   put('connect-new.sh', '~/p2pfs/', mirror_local_mode=True)
+  put('connect-full-node.sh', '~/p2pfs/', mirror_local_mode=True)
+  put('connect-full-node-mount.sh', '~/p2pfs/', mirror_local_mode=True)
 
 def get_ed():
   with cd('~/tmp/'):
     run('wget http://ftp.unicamp.br/pub/gnu/ed/ed-1.9.tar.gz')
     run('tar xvzf ed-1.9.tar.gz')
 
+def new_node_mount():
+  with cd('~/p2pfs/'):
+    runbg('./connect-full-node-mount.sh')
+
+def new_node():
+  with cd('~/p2pfs/'):
+    runbg('./connect-full-node.sh')
+
 def connect_mount():
   with cd('~/p2pfs/'):
-    run('./connect-mount.sh')
+    runbg('./connect-mount.sh')
 
 def connect_new():
   with cd('~/p2pfs/'):
-    run('./connect-new.sh')
+    runbg('./connect-new.sh')
 
 def connect():
   with cd('~/p2pfs/'):
-    run('./connect.sh')
+    runbg('./connect.sh')
 
 def host():
   with cd('~/p2pfs/'):
     runbg('./host.sh')
-    #run('./host.sh')
 
 def unmount():
   sudo('umount /home/ubuntu/p2pfs/testfs', warn_only=True)
