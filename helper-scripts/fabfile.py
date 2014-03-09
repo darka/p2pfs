@@ -2,6 +2,9 @@ from fabric.api import *
 import os
 import random
 
+def runbg(cmd):
+  run('screen -d -m {}'.format(cmd), pty=False)
+
 def fix_boot():
   local('./fix-server.sh {0}'.format(env.host))
 
@@ -62,7 +65,8 @@ def connect():
 
 def host():
   with cd('~/p2pfs/'):
-    run('./host.sh')
+    runbg('./host.sh')
+    #run('./host.sh')
 
 def unmount():
   sudo('umount /home/ubuntu/p2pfs/testfs', warn_only=True)
