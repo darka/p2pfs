@@ -1,15 +1,36 @@
 from fabric.api import *
+import pickle
 import os
 import random
 
+passwords_filename = 'passwords.pickle'
+if os.path.isfile(passwords_filename):
+  passwords = pickle.load(open(passwords_filename))
+  env.passwords = {'ubuntu@{}:22'.format(ip) : password for ip, password in passwords.iteritems()}
+
 def runbg(cmd):
   run('screen -d -m {}'.format(cmd), pty=False)
+
+def ready_general():
+  bootstrap()
+  prepare_dirs()
+  upload_keys()
+  upload_scripts()
+  get_ed()
+
+def ready():
+  fix_sudoers()
+  fix_boot()
+  ready_general()
 
 def fix_boot():
   local('./fix-server.sh {0}'.format(env.host))
 
 def lsres():
   run('ls p2pfs/work/res')
+
+def sudols():
+  sudo('ls')
 
 def ls():
   run('ls')
