@@ -7,20 +7,23 @@ from stat import S_IFDIR, S_IFLNK, S_IFREG
 
 
 class FileSystem(LoggingMixIn, Operations):
+  """FUSE Interface Class"""
+
   def __init__(self, logger, key, file_db, file_service, file_dir):
     self.file_db = file_db
     self.file_dir = file_dir
     self.key = key
     self.l = logger
     self.file_service = file_service
+
+    # Files which will be repropagated after flushing
     self.updateables = set([])
 
   def log(self, message):
     self.l.log('FileSystem', message)
 
   def __call__(self, op, *args):
-    #self.log('-> {} {}'.format(op, (' '.join(str(arg) for arg in args) if args else '')))
-    #self.log('-> {} ...'.format(op))
+    # Insert debugging messages here
     return getattr(self, op)(*args)
 
   def chown(self, path, uid, gid):
@@ -36,8 +39,10 @@ class FileSystem(LoggingMixIn, Operations):
     if result:
       return result
     else:
+      # Could not get attributes
       raise FuseOSError(ENOENT)
 
+  # No support for extended file attributes
   getxattr = None
   listxattr = None
 
@@ -72,7 +77,6 @@ class FileSystem(LoggingMixIn, Operations):
       raise FuseOSError(EACCES)
 
   opendir = None
-  #release = None
   releasedir = None
 
   def file_is_up_to_date(self, file_path_on_disk, path):
@@ -87,21 +91,16 @@ class FileSystem(LoggingMixIn, Operations):
     if threads.blockingCallFromThread(reactor, self.file_db.file_exists, self.key, path):
       file_path = os.path.join(self.file_dir, path[1:])
       if not self.file_is_up_to_date(file_path, path):
-        # we need to find this file on the dht
+        # We need to find this file on the dht
         threads.blockingCallFromThread(reactor, self.file_service.download, path, file_path, self.key, True)
       
     return os.open(os.path.join(self.file_dir, path[1:]), flags)
 
   def read(self, path, size, offset, fh):
     file_path = os.path.join(self.file_dir, path[1:])
-    #if not self.file_is_up_to_date(file_path, path):
-    #  # we need to find this file on the dht
-    #  threads.blockingCallFromThread(reactor, self.file_service.download, path, file_path, self.key, True)
     os.lseek(fh, offset, 0)
     return os.read(fh, size)
 
-  #def symlink(self, target, source):
-  #  print 'symlink'
   def flush(self, path, fh):
     os.fsync(fh)
     if fh in self.updateables:
@@ -123,30 +122,24 @@ class FileSystem(LoggingMixIn, Operations):
     atime, mtime = times if times else (now, now)
     threads.blockingCallFromThread(reactor, self.file_db.update_time, self.key, path, atime, mtime)
 
-  #def readlink(self, path):
-  #  print 'readlink'
-
   def rename(self, old, new):
     threads.blockingCallFromThread(reactor, self.file_db.rename, self.key, old, new)
   
   def rmdir(self, path):
     threads.blockingCallFromThread(reactor, self.file_db.delete_directory, self.key, path)
 
-  #def unlink(self, path):
-  #  print 'unlink'
-
   def truncate(self, path, length, fh=None):
     with open(os.path.join(self.file_dir, path[1:]), 'r+') as f:
       f.truncate(length)
 
   def statfs(self, path):
+    # Hard coded values
     return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
   
   symlink = None
 
   def write(self, path, data, offset, fh):
     self.log('handle {}'.format(str(fh)))
-    #f = open(full_file_path, 'w')
     self.log('writing {}'.format(path))
     os.lseek(fh, offset, 0)
     self.updateables.add(fh)
