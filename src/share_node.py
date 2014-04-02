@@ -5,6 +5,9 @@
 ## See the COPYING file included in this archive
 ##
 
+# This is the executable script used to start a node of the distributed
+# file system.
+
 import argparse
 import cProfile
 import os
@@ -51,14 +54,6 @@ def main():
     ip, port = args.address.split(':')
     port = int(port)
     knownNodes = [(ip, port)]
-  # elif len(sys.argv) == 3:
-  #   knownNodes = []
-  #   f = open(sys.argv[2], 'r')
-  #   lines = f.readlines()
-  #   f.close()
-  #   for line in lines:
-  #     ipAddress, udpPort = line.split()
-  #     knownNodes.append((ipAddress, int(udpPort)))
   else:
     knownNodes = None
 
@@ -66,9 +61,7 @@ def main():
     os.makedirs(os.path.expanduser('~')+'/.entangled')
   except OSError:
     pass
-  dataStore = None#SQLiteDataStore(os.path.expanduser('~')+'/.entangled/fileshare.sqlite')
-
-  ##key = RSA.importKey(open(args.key + '.pub').read())
+  dataStore = None
 
   print('> reading key')
   sha = hashlib.sha1()
@@ -91,7 +84,7 @@ def main():
       reactor.callLater(6, file_service.publish_directory, public_key, directory)
    
   
-    # just for informational purposes
+    # Just for informational purposes
     if args.newdb:
       print('> adding \'/\'')
 
@@ -113,5 +106,6 @@ def main():
   reactor.run()
 
 if __name__ == '__main__':
-  #cProfile.run('main()')
+  # Comment main() and uncomment the next line to enable profiling:
+  # cProfile.run('main()') 
   main()
