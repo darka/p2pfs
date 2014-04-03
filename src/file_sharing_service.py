@@ -9,6 +9,8 @@ from metadata_request_protocol import *
 from upload_request_protocol import *
 
 class FileSharingService():
+  """P2PFS Service Implementation"""
+
   def __init__(self, logger, node, listen_port, key, file_db, file_dir):
     self.node = node
     self.listen_port = listen_port
@@ -24,28 +26,34 @@ class FileSharingService():
     self._setup_tcp()
 
     if self.file_db.new: 
+      # If we have a new metadata database, we first need to publish it
       self.file_db.ready()
       self.file_db.add_directory(self.key, '/', 0755)
       self.file_db.publish()
       reactor.callLater(17, self.query_and_update_db_by_metadata)
     else:
-      # download the database
+      # Otherwise, retrieve database from the network
       db_path = self.file_db.db_filename
+
       def prepare_database(_):
         self.file_db.ready()
+
       df = self.download(os.path.basename(self.file_db.db_filename), db_path, self.key)
       df.addCallback(prepare_database)
       reactor.callLater(30, self.query_and_update_db_by_metadata)
 
   def log(self, message):
+    """Shortcut for logging"""
     self.l.log('FileService', message)
 
   def query_and_update_db_by_metadata(self):
     """Continuously queries the network for a new version of the user's file database."""
     df = self.get_metadata(self.file_db.db_filename, self.key)
+
     def handle_metadata(metadata):
       mtime = self.file_db.get_db_mtime(self.key)
       self.log('my: {}, their: {}'.format(mtime, metadata))
+
       if mtime < metadata:
         self.log('will redownload: {} ({} < {})'.format(self.file_db.db_filename, mtime, metadata))
         db_path = self.file_db.db_filename
@@ -53,12 +61,14 @@ class FileSharingService():
         self.file_db.load_data(self.file_db.db_filename)
       else:
         self.log('{}: {} >= {}'.format(self.file_db.db_filename, mtime, metadata))
+
     df.addCallback(handle_metadata)
-    if df.called:
-      self.log("already called.")
+    if df.called: self.log("already called.") # Debug
+
     reactor.callLater(5, self.query_and_update_db_by_metadata)
 
   def _setup_tcp(self):
+    # Setup Metadata Exchange Protocol
     self.factory = ServerFactory()
     self.factory.protocol = IndexMasterProtocol
     self.factory.file_service = self
@@ -69,9 +79,11 @@ class FileSharingService():
     reactor.listenTCP(self.listen_port, self.factory)
 
   def search(self, keyword):
+    """Search for a keyword in the network."""
     return self.node.searchForKeywords(keyword)
   
   def publish_file_with_upload(self, path, local_file_path, m_time):
+    """Publish a file and upload it to the network."""
     key = sha_hash(path)
     self.log('publishing file {} ({})'.format(path, local_file_path))
 
@@ -92,13 +104,13 @@ class FileSharingService():
           self.log("Will upload '{}' to: {}".format(local_file_path, contact))
           outerDf.chainDeferred(df)
       return outerDf
-    
 
     df = self.node.iterativeFindNode(key)
     df.addCallback(upload_file_to_peers)
     return df
 
   def publish_directory(self, key, path):
+    """Publish a directory and upload it to the network."""
     def cut_path_off(starting_path, current_path):
       for i, j in enumerate(starting_path):
         if current_path[i] != j:
@@ -128,7 +140,7 @@ class FileSharingService():
         self.file_db.add_directory(key, path, 0775)
 
     for filename, path in files:
-      # this is the path to file on the hard drive
+      # The path to the file on the hard drive.
       full_file_path = os.path.join(self.file_dir, path[1:], filename)
       orig_path = os.path.join(self.factory.sharePath, path[1:], filename)
 
@@ -160,12 +172,12 @@ class FileSharingService():
     return [str(contact.address) for contact in contacts]
 
   def get_metadata(self, path, key):
+    """Retrieve metadata for file at path"""
     filename = os.path.basename(path)
     hash = sha_hash(filename)
     self.log('Getting metadata for: {}'.format(filename))
     
     def get_target_node(result):
-      #print self.debug_contacts(result)
       return result.pop()
 
     def get_file(protocol):
@@ -187,6 +199,7 @@ class FileSharingService():
     return df
  
   def download(self, path, destination, key, should_update_time=False):
+    """Download a file."""
     hash = sha_hash(path)
     self.log('Downloading: {}({})'.format(path, should_update_time))
     

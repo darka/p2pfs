@@ -5,6 +5,7 @@ import binascii
 import json
 
 class MetadataRequestProtocol(LineReceiver):
+  """Protocol for requesting metadata class"""
   def __init__(self, logger):
     self.l = logger
     self.buffer = ''

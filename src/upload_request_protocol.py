@@ -5,6 +5,7 @@ import binascii
 import json
 
 class UploadRequestProtocol(LineReceiver):
+  """Protocol for requesting a node to send you a file."""
   def __init__(self, logger):
     self.l = logger
     self.outfile_size = 0

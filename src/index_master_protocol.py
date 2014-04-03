@@ -6,6 +6,7 @@ import json
 import binascii
 
 class IndexMasterProtocol(LineReceiver):
+  """This class implements the protocol on the receiving side of a connection."""
   def log(self, message):
     self.factory.l.log('IndexMaster', message)
 
@@ -25,7 +26,8 @@ class IndexMasterProtocol(LineReceiver):
       self.key = data['key']
       self.hash = binascii.unhexlify(data['hash'])
       self.mtime = data['time']
-      # hack
+
+      # Hack
       if self.filename[0] == '/':
         self.destination = os.path.join(self.factory.file_dir, self.filename[1:])
       else:
@@ -44,7 +46,6 @@ class IndexMasterProtocol(LineReceiver):
       self.hash = binascii.unhexlify(data['hash'])
 
       if self.factory.file_service.storage.has_key(self.hash):
-        #print self.factory.file_service.storage
         self.sendLine(str(self.factory.file_service.storage[self.hash]['mtime']))
         self.transport.loseConnection()
         self.log('Metadata sent and transport connection terminated')
@@ -57,11 +58,13 @@ class IndexMasterProtocol(LineReceiver):
 
       if self.factory.file_service.storage.has_key(self.hash):
         self.setRawMode()
-        # hack
+
+        # Hack
         if data['path'][0] == '/':
           file_path = os.path.join(self.factory.file_dir, data['path'][1:])
         else:
           file_path = os.path.join(self.factory.file_dir, data['path'])
+
         self.log('Uploading: {}'.format(file_path))
         d = upload_file_with_encryption(file_path, self.transport)
         d.addCallback(self.transferCompleted)
@@ -80,7 +83,6 @@ class IndexMasterProtocol(LineReceiver):
     self.outfile_size += len(data)
 
   def add_storage(self, hash, key, filename, mtime):
-    #self.factory.file_service.storage[self.hash] = {'key':self.key, 'filename':self.filename, 'mtime':int(self.mtime)}
     print('stored {}'.format(filename))
     self.factory.file_service.storage[hash] = {
         'key': key, 

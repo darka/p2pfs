@@ -5,6 +5,7 @@ import binascii
 import json
 
 class UploadProtocol(LineReceiver):
+  """Protocol for uploading files."""
   def __init__(self, logger):
     self.l = logger
 

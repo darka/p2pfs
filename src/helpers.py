@@ -8,7 +8,7 @@ import os
 import hashlib
 
 # For testing purposes, all users of the file system share the same AES key.
-# This is good enough for performance measurement.
+# This is good enough for performance measurement, but obviously not suitable for production.
 ENCRYPT_KEY = 'testtesttesttest'
 
 def sha_hash(name):
@@ -17,6 +17,7 @@ def sha_hash(name):
   return h.digest()
 
 def upload_file_with_encryption(filename, transport):
+  """Encrypt and upload."""
   infile = open(filename, 'r')
   tmp_file = NamedTemporaryFile(delete=False)
   d = threads.deferToThread(encrypt_file, infile, tmp_file, ENCRYPT_KEY)
