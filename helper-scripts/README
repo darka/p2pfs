@@ -1,0 +1,46 @@
+P2PFS Helpers
+=====
+
+These are various helper scripts for running benchmarks
+bootstrapping servers.
+
+Short description of the helper files:
+
+Benchmarks (benchmark.sh is a shortened version of Andrew)
+- andrew.sh
+- benchmark.sh
+- concurrent.py
+
+Server bootstrapping scripts that install all dependencies:
+- bootstrap-nfs.sh
+- bootstrap-p2pfs.sh
+
+P2PFS node running scripts:
+- connect-full-node-mount.sh # Generates a key, connects, mounds directory
+- connect-full-node.sh # Generates a key and connects to a node
+- connect-mount.sh # Connects as existing user and mounts directory
+- connect-new.sh # Connects to a new as a new user
+- connect.sh # Connects to a node as an existing user
+- host.sh # Starts a new node
+
+NFS Test Configuration
+- exports
+
+Fabric script
+- fabfile.py
+
+Fabric helper script to run on many servers at once:
+- run_fab.py
+- server_line.py # Used by run_fab.py
+
+SSH Command runner for multiple servers:
+- multi-server-run.py
+
+Scripts for fixing cloud environment server configurations:
+- fix-server.sh
+- server-setup.py
+
+A modified sysctl.conf from default Ubuntu system intended
+for the cloud environment servers with IPv6 disabled:
+- sysctl.conf
+
