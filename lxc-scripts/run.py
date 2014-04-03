@@ -18,7 +18,6 @@ resources_location = "/home/ubuntu/p2pfs/src/res/"
 node_location = os.path.join(location, 'src', 'share_node.py')
 base_command = node_location + " --port 2000"
 
-#python_command = sys.executable
 python_command = "/usr/bin/pypy"
 
 parser = argparse.ArgumentParser()
@@ -28,7 +27,6 @@ args = parser.parse_args()
 
 total = args.container_count
 
-#starting_address = netaddr.IPAddress("192.168.1.10")
 starting_address = netaddr.IPAddress("10.0.3.2")
 
 new_address = starting_address

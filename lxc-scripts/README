@@ -1,4 +1,11 @@
-Put this in your interfaces:
+Files:
+
+create.py [N]   - creates LXC configurations for N nodes
+generate.py [N] - generates configurations for N node
+run.py -c [N]   - runs N nodes on N containers
+destroy_all.sh  - destroys all LXC containers
+
+To use LXC containers put this in your networking interfaces:
 
 auto eth0
 iface eth0 inet static
