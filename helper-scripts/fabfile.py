@@ -65,8 +65,6 @@ def prepare_dirs():
 def upload_scripts():
   put('host.sh', '~/p2pfs/', mirror_local_mode=True)
   put('connect.sh', '~/p2pfs/', mirror_local_mode=True)
-  #put('connect-all.sh', '~/p2pfs/')
-  #put('connect-new.sh', '~/p2pfs/')
   put('connect-mount.sh', '~/p2pfs/', mirror_local_mode=True)
   put('connect-new.sh', '~/p2pfs/', mirror_local_mode=True)
   put('connect-full-node.sh', '~/p2pfs/', mirror_local_mode=True)

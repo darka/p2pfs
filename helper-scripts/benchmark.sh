@@ -1,3 +1,4 @@
+#!/bin/bash
 cd testfs
 echo Copy
 time -f "\t%E real,\t%U user,\t%S sys" cp -r ~/tmp/ed-1.9 . >> /dev/null
