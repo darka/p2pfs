@@ -1,4 +1,4 @@
-p2pfs
+P2PFS
 =====
 
 This is a prototype of a peer-to-peer distributed file system using Python Twisted, Entangled (Kademlia) and FUSE.

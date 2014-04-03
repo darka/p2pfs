@@ -1,0 +1,32 @@
+P2PFS Source Code
+=====
+
+Short description of the source code files:
+
+P2PFS Executable:
+- share_node.py
+
+Main P2PFS Service Coordinator:
+- file_sharing_service.py
+
+Metadata Database Implementation:
+- file_database.py
+
+FUSE Interface:
+- file_system.py
+
+Various helper functions/classes:
+- helpers.py
+- logger.py
+
+Helper for generating public/private keys:
+- keys/gen.sh
+
+Metadata and Data Exchange Protocol:
+- index_master_protocol.py
+- metadata_request_protocol.py
+- upload_protocol.py
+- upload_request_protocol.py
+
+Unit tests for helper functions:
+- test_helpers.py
