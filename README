@@ -1,0 +1,13 @@
+p2pfs
+=====
+
+This is a prototype of a peer-to-peer distributed file system using Python Twisted, Entangled (Kademlia) and FUSE.
+
+Directory structure:
+
+cloud-scripts/ - scripts for starting/stopping cloud servers
+helper-scripts/ - benchmarks, bootstrapping scripts, node running scripts
+lxc-scripts/ - scripts for setting up LXC containers
+src/ - p2pfs source code
+
+Each directory contains its own README file that explains the contents.
