@@ -1,0 +1,5 @@
+This directory contains a number of scripts for interfacing
+with the cloud environment, that was used for testing the project.
+
+They will not work without the needed credentials.
+Some required UUIDs were removed from them as well.
